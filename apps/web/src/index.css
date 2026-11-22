@@ -1,0 +1,66 @@
+@import 'tailwindcss';
+@import '@fontsource/geist-sans/400.css';
+@import '@fontsource/geist-sans/500.css';
+@import '@fontsource/geist-sans/600.css';
+@import '@fontsource/geist-sans/700.css';
+@import '@fontsource/playfair-display/600.css';
+@import '@fontsource/noto-sans-tamil/400.css';
+@import '@fontsource/noto-sans-tamil/600.css';
+
+@theme {
+  /* one UI family; the serif is kept only for the AMMAS wordmark */
+  --font-sans: 'Geist Sans', 'Noto Sans Tamil', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'Geist Sans', 'Noto Sans Tamil', ui-sans-serif, system-ui, sans-serif;
+  --font-brand: 'Playfair Display', Georgia, serif;
+  --font-mono: 'Geist Sans', ui-sans-serif, system-ui, sans-serif;
+  /* surfaces: one warm neutral family */
+  --color-paper: #f5f4ef;
+  --color-card: #ffffff;
+  --color-line: #e5e3da;
+  --color-ink: #1b201c;
+  --color-ink-soft: #666d63;
+  /* brand: forest green. The only accent besides status colours is saffron, used for "look here" (peak hour, quick order, star) */
+  --color-forest: #17513a;
+  --color-forest-deep: #0f3d2b;
+  --color-side: #12362a;
+  --color-forest-soft: #e8efe9;
+  --color-gold: #b8741a;
+  --color-gold-line: #d3ae6b;
+  --color-gold-soft: #f8efdf;
+  --color-ok: #2a7a4d;
+  --color-warn: #a4650f;
+  --color-bad: #b4483c;
+  --color-blue: #587c9d;
+  --ease-out-soft: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Global scale: Tailwind sizes/spacing are rem-based, so this shrinks text, padding, gaps and controls ~6% everywhere. Set back to 100% to undo. */
+html { -webkit-text-size-adjust: 100%; font-size: 93.75%; }
+html, body { overflow-x: clip; }
+body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-sans); min-height: 100dvh; }
+.font-ta { font-family: 'Noto Sans Tamil', 'DM Sans', sans-serif; }
+.num { font-variant-numeric: tabular-nums; letter-spacing: -0.015em; }
+h1, h2, h3 { letter-spacing: -0.015em; text-wrap: balance; }
+p { text-wrap: pretty; }
+.eyebrow { font-size: 12px; font-weight: 500; color: var(--color-ink-soft); }
+*:focus-visible { outline: 3px solid var(--color-gold); outline-offset: 2px; border-radius: 6px; }
+button { touch-action: manipulation; }
+
+/* tactile press feedback for every tappable control */
+.press { transition: transform 160ms var(--ease-out-soft), background-color 200ms var(--ease-out-soft), box-shadow 200ms var(--ease-out-soft); }
+.press:active:not(:disabled) { transform: scale(0.97); }
+
+.shadow-soft { box-shadow: 0 1px 2px rgba(18,54,42,.04); }
+
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.rise { animation: rise 420ms var(--ease-out-soft) both; animation-delay: calc(var(--i, 0) * 40ms); }
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.skeleton { background: linear-gradient(90deg, #ebe9e0 25%, #f5f4ee 37%, #ebe9e0 63%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 12px; }
+@keyframes ping-soft { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+.pulse-dot { animation: ping-soft 1.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .rise, .pulse-dot, .skeleton { animation: none; } .press { transition: none; } }
+
+@media print {
+  body { background: white; }
+  .no-print { display: none !important; }
+}

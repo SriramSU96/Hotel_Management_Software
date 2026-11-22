@@ -1,0 +1,19 @@
+# Local trial: API + web + MongoDB. For production use MongoDB Atlas and set MONGODB_URI.
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes: [mongo-data:/data/db]
+  app:
+    build: { context: ../.., dockerfile: infrastructure/docker/Dockerfile }
+    restart: unless-stopped
+    depends_on: [mongo]
+    ports: ["4000:4000"]
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/ammas
+      PUBLIC_URL: http://localhost:4000
+      NODE_ENV: development
+      PRINT_BRIDGE_TOKEN: ${PRINT_BRIDGE_TOKEN:-}
+      SEED_OWNER_PASSWORD: ${SEED_OWNER_PASSWORD:-}
+    volumes: [uploads:/data/uploads]
+volumes: { mongo-data: {}, uploads: {} }

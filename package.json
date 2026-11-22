@@ -1,0 +1,24 @@
+{
+  "name": "ammas-coimbatore",
+  "version": "2.0.0",
+  "private": true,
+  "description": "AMMAS Hotel App v2 - single-branch restaurant POS, kitchen, stock and owner reporting",
+  "workspaces": [
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "concurrently -n server,web -c green,yellow \"npm run dev -w @ammas/server\" \"npm run dev -w @ammas/web\"",
+    "build": "npm run build -w @ammas/server && npm run build -w @ammas/web",
+    "start": "npm run start -w @ammas/server",
+    "typecheck": "npm run typecheck -w @ammas/server && npm run typecheck -w @ammas/web && npm run typecheck -w @ammas/print-bridge",
+    "test": "npm run test -w @ammas/server",
+    "seed": "npm run seed -w @ammas/server",
+    "bridge": "npm run start -w @ammas/print-bridge"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.5"
+  }
+}

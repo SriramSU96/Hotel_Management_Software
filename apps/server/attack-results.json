@@ -1,0 +1,891 @@
+[
+  {
+    "id": "A1",
+    "area": "authn",
+    "sev": "critical",
+    "ok": true,
+    "detail": "all 401"
+  },
+  {
+    "id": "A2",
+    "area": "authn",
+    "sev": "critical",
+    "ok": true,
+    "detail": "all 401"
+  },
+  {
+    "id": "B1",
+    "area": "authn",
+    "sev": "medium",
+    "ok": true,
+    "detail": "same message/status for bad user and bad password"
+  },
+  {
+    "id": "B2",
+    "area": "authn",
+    "sev": "low",
+    "ok": true,
+    "detail": "timing known-user 41ms vs unknown-user 37ms (3 tries each)"
+  },
+  {
+    "id": "B3",
+    "area": "injection",
+    "sev": "critical",
+    "ok": true,
+    "detail": "operator object login -> 400"
+  },
+  {
+    "id": "B4",
+    "area": "session",
+    "sev": "medium",
+    "ok": true,
+    "detail": "ammas_session=***; Max-Age=43200; Path=/; Expires=Sat, 21 Nov 2026 16:20:13 GMT; HttpOnly; SameSite=Lax"
+  },
+  {
+    "id": "B5",
+    "area": "session",
+    "sev": "info",
+    "ok": false,
+    "detail": "Secure flag present (expected only in production over HTTPS)"
+  },
+  {
+    "id": "C1",
+    "area": "csrf",
+    "sev": "high",
+    "ok": true,
+    "detail": "state-changing POST without X-Requested-With -> 403"
+  },
+  {
+    "id": "C2",
+    "area": "cors",
+    "sev": "high",
+    "ok": true,
+    "detail": "CORS preflight from evil origin: ACAO=null"
+  },
+  {
+    "id": "C3",
+    "area": "csrf",
+    "sev": "low",
+    "ok": true,
+    "detail": "logout via GET -> 404"
+  },
+  {
+    "id": "C4",
+    "area": "csrf",
+    "sev": "high",
+    "ok": true,
+    "detail": "text/plain cross-site style POST -> 403"
+  },
+  {
+    "id": "D1",
+    "area": "rbac",
+    "sev": "critical",
+    "ok": true,
+    "detail": "cashier vs 22 admin endpoints; leaks: none"
+  },
+  {
+    "id": "D2",
+    "area": "rbac",
+    "sev": "critical",
+    "ok": true,
+    "detail": "kitchen role leaks: none"
+  },
+  {
+    "id": "D3",
+    "area": "rbac",
+    "sev": "critical",
+    "ok": true,
+    "detail": "stock role leaks: none"
+  },
+  {
+    "id": "D4",
+    "area": "rbac",
+    "sev": "high",
+    "ok": true,
+    "detail": "cashier discount on create -> 403"
+  },
+  {
+    "id": "D5",
+    "area": "privacy",
+    "sev": "medium",
+    "ok": true,
+    "detail": "cashier /settings hides owner contact + schedule"
+  },
+  {
+    "id": "D6",
+    "area": "secrets",
+    "sev": "critical",
+    "ok": true,
+    "detail": "GET /users contains no password hash"
+  },
+  {
+    "id": "D7",
+    "area": "secrets",
+    "sev": "critical",
+    "ok": true,
+    "detail": "POST /users response contains no password hash"
+  },
+  {
+    "id": "D8",
+    "area": "secrets",
+    "sev": "medium",
+    "ok": true,
+    "detail": "/auth/me leaks nothing sensitive"
+  },
+  {
+    "id": "E1",
+    "area": "privesc",
+    "sev": "critical",
+    "ok": true,
+    "detail": "user-manager resets OWNER password -> 403; login with new password -> 401"
+  },
+  {
+    "id": "E2",
+    "area": "privesc",
+    "sev": "critical",
+    "ok": true,
+    "detail": "user-manager sets own role to owner -> 403"
+  },
+  {
+    "id": "E3",
+    "area": "privesc",
+    "sev": "critical",
+    "ok": true,
+    "detail": "user-manager grants self permissions they lack -> 403"
+  },
+  {
+    "id": "E4",
+    "area": "privesc",
+    "sev": "high",
+    "ok": true,
+    "detail": "user-manager deactivates owner -> 403"
+  },
+  {
+    "id": "E5",
+    "area": "privesc",
+    "sev": "critical",
+    "ok": true,
+    "detail": "user-manager adds permissions they lack to a role -> 403"
+  },
+  {
+    "id": "E6",
+    "area": "regression",
+    "sev": "high",
+    "ok": true,
+    "detail": "user-manager can still edit a user within their own access -> 200"
+  },
+  {
+    "id": "E7",
+    "area": "privesc",
+    "sev": "critical",
+    "ok": true,
+    "detail": "user-manager creates a new OWNER-role user -> 403"
+  },
+  {
+    "id": "E8",
+    "area": "regression",
+    "sev": "high",
+    "ok": true,
+    "detail": "owner can still reset staff passwords -> 200"
+  },
+  {
+    "id": "F1",
+    "area": "injection",
+    "sev": "high",
+    "ok": true,
+    "detail": "operator-injection statuses {\"orders view[$ne]\":400,\"orders q[$regex]\":400,\"audit action[$ne]\":400,\"summary range[$gt]\":500,\"summary from obj\":500} vs normal request 500 (same as normal = input ignored, not injected)"
+  },
+  {
+    "id": "F2",
+    "area": "dos",
+    "sev": "medium",
+    "ok": true,
+    "detail": "3000-char search -> 200 in 13ms"
+  },
+  {
+    "id": "F3",
+    "area": "robustness",
+    "sev": "low",
+    "ok": true,
+    "detail": "invalid ObjectId -> 400 (500 means unhandled CastError)"
+  },
+  {
+    "id": "F4",
+    "area": "robustness",
+    "sev": "low",
+    "ok": true,
+    "detail": "malformed JSON -> 400"
+  },
+  {
+    "id": "F5",
+    "area": "dos",
+    "sev": "medium",
+    "ok": true,
+    "detail": "300KB JSON body -> 413"
+  },
+  {
+    "id": "F6",
+    "area": "info-leak",
+    "sev": "medium",
+    "ok": true,
+    "detail": "no stack traces or driver names in error bodies"
+  },
+  {
+    "id": "F7",
+    "area": "traversal",
+    "sev": "critical",
+    "ok": true,
+    "detail": "path traversal probes -> 404, 200, 200, 200"
+  },
+  {
+    "id": "F8",
+    "area": "misc",
+    "sev": "low",
+    "ok": true,
+    "detail": "TRACE -> 0"
+  },
+  {
+    "id": "G1",
+    "area": "logic",
+    "sev": "critical",
+    "ok": true,
+    "detail": "client-sent price/total ignored: total=12000 expected 12000"
+  },
+  {
+    "id": "G2",
+    "area": "logic",
+    "sev": "medium",
+    "ok": true,
+    "detail": "parcel price used: total=24000"
+  },
+  {
+    "id": "G3",
+    "area": "logic",
+    "sev": "critical",
+    "ok": true,
+    "detail": "negative/zero/fractional/100/NaN qty -> 400,400,400,400,400"
+  },
+  {
+    "id": "G4",
+    "area": "logic",
+    "sev": "medium",
+    "ok": true,
+    "detail": "unknown product -> 400"
+  },
+  {
+    "id": "G5",
+    "area": "logic",
+    "sev": "medium",
+    "ok": true,
+    "detail": "same idempotency key returns the same order (no duplicate)"
+  },
+  {
+    "id": "G6",
+    "area": "race",
+    "sev": "high",
+    "ok": true,
+    "detail": "8 concurrent identical submits -> 1 distinct order(s), statuses 201,200"
+  },
+  {
+    "id": "G7",
+    "area": "race",
+    "sev": "high",
+    "ok": true,
+    "detail": "6 concurrent orders for the same table -> 1 accepted (expected 1)"
+  },
+  {
+    "id": "G8",
+    "area": "logic",
+    "sev": "medium",
+    "ok": true,
+    "detail": "sold-out item ordered -> 409"
+  },
+  {
+    "id": "G9",
+    "area": "logic",
+    "sev": "high",
+    "ok": true,
+    "detail": "huge discount clamped: total=0 discount=12000"
+  },
+  {
+    "id": "H1",
+    "area": "money",
+    "sev": "high",
+    "ok": true,
+    "detail": "overpay -> 400"
+  },
+  {
+    "id": "H2",
+    "area": "money",
+    "sev": "high",
+    "ok": true,
+    "detail": "UPI without verification -> 400"
+  },
+  {
+    "id": "H3",
+    "area": "money",
+    "sev": "critical",
+    "ok": true,
+    "detail": "negative payment -> 400"
+  },
+  {
+    "id": "H4",
+    "area": "money",
+    "sev": "high",
+    "ok": true,
+    "detail": "payment on unconfirmed order -> 409"
+  },
+  {
+    "id": "H5",
+    "area": "race",
+    "sev": "critical",
+    "ok": true,
+    "detail": "10 concurrent full payments: total=24000 paid=24000 payments recorded=24000 (1 rows)"
+  },
+  {
+    "id": "H5b",
+    "area": "race",
+    "sev": "high",
+    "ok": true,
+    "detail": "after concurrent payments status is PAID (must be PAID)"
+  },
+  {
+    "id": "H6",
+    "area": "money",
+    "sev": "high",
+    "ok": true,
+    "detail": "payment key reused on ANOTHER order: reply duplicate=undefined, order B paid=0/12000 (silently unpaid = bug)"
+  },
+  {
+    "id": "H7",
+    "area": "rbac",
+    "sev": "critical",
+    "ok": true,
+    "detail": "cashier refund -> 403"
+  },
+  {
+    "id": "H8",
+    "area": "race",
+    "sev": "critical",
+    "ok": true,
+    "detail": "10 concurrent full refunds: paid=12000 refunded rows=12000 (1 refunds)"
+  },
+  {
+    "id": "H9",
+    "area": "money",
+    "sev": "high",
+    "ok": true,
+    "detail": "cancel an order that is already paid -> 409"
+  },
+  {
+    "id": "H10",
+    "area": "rbac",
+    "sev": "medium",
+    "ok": true,
+    "detail": "cashier cancel -> 403"
+  },
+  {
+    "id": "I1",
+    "area": "public",
+    "sev": "low",
+    "ok": true,
+    "detail": "QR info exposes only: restaurantName,tableLabel"
+  },
+  {
+    "id": "I2",
+    "area": "public",
+    "sev": "low",
+    "ok": true,
+    "detail": "unknown QR token -> 404"
+  },
+  {
+    "id": "I3",
+    "area": "public",
+    "sev": "info",
+    "ok": true,
+    "detail": "anonymous feedback accepted -> 201"
+  },
+  {
+    "id": "I4",
+    "area": "csrf",
+    "sev": "info",
+    "ok": true,
+    "detail": "public feedback without X-Requested-With -> 403 (public form is intentionally anonymous)"
+  },
+  {
+    "id": "I5",
+    "area": "public",
+    "sev": "medium",
+    "ok": true,
+    "detail": "14 rapid anonymous submits from one IP -> 5 rate-limited"
+  },
+  {
+    "id": "I6",
+    "area": "public",
+    "sev": "high",
+    "ok": true,
+    "detail": "14 submits rotating spoofed X-Forwarded-For -> 14 rate-limited (0 = limiter bypassable, feedback table can be flooded)"
+  },
+  {
+    "id": "I7",
+    "area": "public",
+    "sev": "low",
+    "ok": true,
+    "detail": "oversized note -> 429"
+  },
+  {
+    "id": "I8",
+    "area": "injection",
+    "sev": "high",
+    "ok": true,
+    "detail": "CSV export contains formula-looking cells an attacker planted via the public form: none"
+  },
+  {
+    "id": "I9",
+    "area": "public",
+    "sev": "low",
+    "ok": true,
+    "detail": "random receipt token -> 404"
+  },
+  {
+    "id": "I10",
+    "area": "privacy",
+    "sev": "medium",
+    "ok": true,
+    "detail": "digital receipt has no customer phone/name/staff/UPI ref"
+  },
+  {
+    "id": "J1",
+    "area": "upload",
+    "sev": "info",
+    "ok": true,
+    "detail": "valid PNG -> 200"
+  },
+  {
+    "id": "J2",
+    "area": "upload",
+    "sev": "high",
+    "ok": true,
+    "detail": "HTML disguised as PNG -> 400 "
+  },
+  {
+    "id": "J3",
+    "area": "upload",
+    "sev": "high",
+    "ok": true,
+    "detail": "SVG with script -> 400"
+  },
+  {
+    "id": "J4",
+    "area": "upload",
+    "sev": "high",
+    "ok": true,
+    "detail": "polyglot PNG+PHP is re-encoded (served file contains no <?php): /uploads/0741631a3518df15.webp"
+  },
+  {
+    "id": "J5",
+    "area": "upload",
+    "sev": "medium",
+    "ok": true,
+    "detail": "8MB upload -> 413"
+  },
+  {
+    "id": "J6",
+    "area": "rbac",
+    "sev": "high",
+    "ok": true,
+    "detail": "cashier uploads product image -> 403"
+  },
+  {
+    "id": "J7",
+    "area": "authn",
+    "sev": "high",
+    "ok": true,
+    "detail": "unauthenticated upload -> 401"
+  },
+  {
+    "id": "J8",
+    "area": "dos",
+    "sev": "medium",
+    "ok": true,
+    "detail": "bomb generation skipped: Error: Input image exceeds pixel limit"
+  },
+  {
+    "id": "K1",
+    "area": "bridge",
+    "sev": "critical",
+    "ok": true,
+    "detail": "bridge claim without token -> 401"
+  },
+  {
+    "id": "K2",
+    "area": "bridge",
+    "sev": "critical",
+    "ok": true,
+    "detail": "bridge wrong token -> 401"
+  },
+  {
+    "id": "K3",
+    "area": "bridge",
+    "sev": "high",
+    "ok": true,
+    "detail": "owner session cookie cannot call bridge -> 401"
+  },
+  {
+    "id": "K4",
+    "area": "bridge",
+    "sev": "info",
+    "ok": true,
+    "detail": "valid bridge token -> 200"
+  },
+  {
+    "id": "K5",
+    "area": "bridge",
+    "sev": "high",
+    "ok": true,
+    "detail": "cashier fakes printer heartbeat -> 401"
+  },
+  {
+    "id": "L1",
+    "area": "session",
+    "sev": "high",
+    "ok": true,
+    "detail": "cookie replay after logout is rejected"
+  },
+  {
+    "id": "L2",
+    "area": "session",
+    "sev": "high",
+    "ok": true,
+    "detail": "password change kills other sessions of that user (change-password -> 200 {\"ok\":true}; old session /me -> {\"user\":null})"
+  },
+  {
+    "id": "L3",
+    "area": "session",
+    "sev": "high",
+    "ok": true,
+    "detail": "deactivating a user ends their session immediately"
+  },
+  {
+    "id": "L4",
+    "area": "authn",
+    "sev": "info",
+    "ok": true,
+    "detail": "common password \"password\" accepted for a new user? -> 201 (201 = weak passwords allowed)"
+  },
+  {
+    "id": "L5",
+    "area": "authn",
+    "sev": "info",
+    "ok": true,
+    "detail": "password equal to username -> 201"
+  },
+  {
+    "id": "L6",
+    "area": "logic",
+    "sev": "high",
+    "ok": true,
+    "detail": "owner deactivates the last administrator -> 409"
+  },
+  {
+    "id": "M1",
+    "area": "realtime",
+    "sev": "high",
+    "ok": true,
+    "detail": "socket without session -> rejected: unauthenticated"
+  },
+  {
+    "id": "M2",
+    "area": "realtime",
+    "sev": "info",
+    "ok": true,
+    "detail": "socket with session -> connected"
+  },
+  {
+    "id": "M3",
+    "area": "realtime",
+    "sev": "high",
+    "ok": true,
+    "detail": "cross-site WebSocket with the victim's cookie from Origin evil.example -> rejected: websocket error (connected = cross-site WebSocket hijacking possible)"
+  },
+  {
+    "id": "N1",
+    "area": "headers",
+    "sev": "medium",
+    "ok": true,
+    "detail": "Cache-Control on authenticated API responses: \"no-store\""
+  },
+  {
+    "id": "N0",
+    "area": "headers",
+    "sev": "medium",
+    "ok": true,
+    "detail": "CSP header present"
+  },
+  {
+    "id": "N2",
+    "area": "headers",
+    "sev": "medium",
+    "ok": true,
+    "detail": "CSP does not force HTTPS upgrade (would break plain-HTTP restaurant LAN installs)"
+  },
+  {
+    "id": "N3",
+    "area": "headers",
+    "sev": "low",
+    "ok": true,
+    "detail": "CSP connect-src allows arbitrary ws:/wss: hosts: connect-src 'self' ws://localhost:5173"
+  },
+  {
+    "id": "N4",
+    "area": "headers",
+    "sev": "low",
+    "ok": true,
+    "detail": "X-Content-Type-Options present"
+  },
+  {
+    "id": "N5",
+    "area": "info-leak",
+    "sev": "low",
+    "ok": true,
+    "detail": "/health does not reveal uptime to the public internet"
+  },
+  {
+    "id": "O1",
+    "area": "rbac",
+    "sev": "high",
+    "ok": true,
+    "detail": "cashier records a digital send -> 200"
+  },
+  {
+    "id": "O2-kitchen",
+    "area": "rbac",
+    "sev": "critical",
+    "ok": true,
+    "detail": "kitchen is refused everywhere it should be"
+  },
+  {
+    "id": "O2-stock",
+    "area": "rbac",
+    "sev": "critical",
+    "ok": true,
+    "detail": "stock is refused everywhere it should be"
+  },
+  {
+    "id": "O2-cashier",
+    "area": "rbac",
+    "sev": "critical",
+    "ok": true,
+    "detail": "cashier is refused everywhere it should be"
+  },
+  {
+    "id": "O2-supplier",
+    "area": "rbac",
+    "sev": "critical",
+    "ok": true,
+    "detail": "supplier is refused everywhere it should be"
+  },
+  {
+    "id": "O3",
+    "area": "rbac",
+    "sev": "medium",
+    "ok": true,
+    "detail": "supplier role can list and check digital bills -> 200,200"
+  },
+  {
+    "id": "O4",
+    "area": "rbac",
+    "sev": "info",
+    "ok": true,
+    "detail": "kitchen can print its own ticket -> 200"
+  },
+  {
+    "id": "O5",
+    "area": "secrets",
+    "sev": "critical",
+    "ok": true,
+    "detail": "SMTP password / WhatsApp token never appear in settings, staff settings or the audit log (not even encrypted)"
+  },
+  {
+    "id": "O6",
+    "area": "secrets",
+    "sev": "high",
+    "ok": true,
+    "detail": "a cashier does not see the mail server or user name"
+  },
+  {
+    "id": "O7",
+    "area": "mass-assignment",
+    "sev": "high",
+    "ok": true,
+    "detail": "cannot write encrypted fields or mark the owner email verified through /settings -> 200"
+  },
+  {
+    "id": "O8",
+    "area": "validation",
+    "sev": "high",
+    "ok": true,
+    "detail": "every out-of-range printer / email / WhatsApp / report setting is rejected"
+  },
+  {
+    "id": "O9",
+    "area": "abuse",
+    "sev": "high",
+    "ok": true,
+    "detail": "test email to an address that is not the owner's saved one is refused -> 400 (otherwise the shop's mail server is a spam relay)"
+  },
+  {
+    "id": "O10",
+    "area": "injection",
+    "sev": "critical",
+    "ok": true,
+    "detail": "operator / regex / null-byte / array / huge inputs to Verify never crash or approve"
+  },
+  {
+    "id": "O11",
+    "area": "injection",
+    "sev": "high",
+    "ok": true,
+    "detail": "malformed ids give 4xx, never a server error"
+  },
+  {
+    "id": "O12",
+    "area": "validation",
+    "sev": "medium",
+    "ok": true,
+    "detail": "receipt kind/copy parameters are strictly validated"
+  },
+  {
+    "id": "O13",
+    "area": "injection",
+    "sev": "medium",
+    "ok": true,
+    "detail": "verified report with hostile range -> 200/200"
+  },
+  {
+    "id": "O14",
+    "area": "logic",
+    "sev": "critical",
+    "ok": true,
+    "detail": "unpaid digital bill -> NOT_PAID, verify tap -> 409"
+  },
+  {
+    "id": "O15",
+    "area": "logic",
+    "sev": "critical",
+    "ok": true,
+    "detail": "part-paid bill is not genuine"
+  },
+  {
+    "id": "O16",
+    "area": "logic",
+    "sev": "critical",
+    "ok": true,
+    "detail": "paid bill AMMAS never sent digitally (fake on a phone) -> NOT_SENT, verify tap -> 409"
+  },
+  {
+    "id": "O17",
+    "area": "logic",
+    "sev": "high",
+    "ok": true,
+    "detail": "cancelled/refunded bill is not genuine (cancel 409) -> GENUINE; re-send -> 200"
+  },
+  {
+    "id": "O18",
+    "area": "race",
+    "sev": "critical",
+    "ok": true,
+    "detail": "12 simultaneous verify taps from 2 people -> 200,409,409,409,409,409,409,409,409,409,409,409"
+  },
+  {
+    "id": "O19",
+    "area": "logic",
+    "sev": "critical",
+    "ok": true,
+    "detail": "after verification the bill cannot be re-sent or re-verified (resend 409, now ALREADY_VERIFIED)"
+  },
+  {
+    "id": "O20",
+    "area": "validation",
+    "sev": "medium",
+    "ok": true,
+    "detail": "invalid mobile numbers are refused"
+  },
+  {
+    "id": "O21",
+    "area": "privacy",
+    "sev": "high",
+    "ok": true,
+    "detail": "the digital list shows only the last 4 digits, no full number or receipt token"
+  },
+  {
+    "id": "O22",
+    "area": "privacy",
+    "sev": "high",
+    "ok": true,
+    "detail": "what the supplier sees contains no customer data, payment reference or receipt link"
+  },
+  {
+    "id": "O23",
+    "area": "report",
+    "sev": "medium",
+    "ok": true,
+    "detail": "verified report lists the bill with items and who verified, no full phone numbers"
+  },
+  {
+    "id": "O24",
+    "area": "csv",
+    "sev": "high",
+    "ok": true,
+    "detail": "CSV cannot carry spreadsheet formulas from item notes or names"
+  },
+  {
+    "id": "O25",
+    "area": "print",
+    "sev": "medium",
+    "ok": true,
+    "detail": "a second printed bill is clearly marked COPY"
+  },
+  {
+    "id": "O26",
+    "area": "print",
+    "sev": "info",
+    "ok": true,
+    "detail": "item note with <img onerror> arrives as plain text (browser print escapes it): yes, escaped client-side"
+  },
+  {
+    "id": "O27",
+    "area": "throttle",
+    "sev": "medium",
+    "ok": true,
+    "detail": "guessing many bill numbers in a minute is slowed down (429)"
+  },
+  {
+    "id": "O28",
+    "area": "abuse",
+    "sev": "high",
+    "ok": true,
+    "detail": "starting owner-email verification 10 times in a row is throttled -> 502,502,502,502,502,502,502,429,429,429"
+  },
+  {
+    "id": "B6",
+    "area": "authn",
+    "sev": "high",
+    "ok": true,
+    "detail": "40 wrong passwords for one (staff) account from 40 spoofed X-Forwarded-For addresses -> 32 blocked (0 means the limiter is bypassable)"
+  },
+  {
+    "id": "B7",
+    "area": "availability",
+    "sev": "medium",
+    "ok": true,
+    "detail": "after 25 failed tries on one account (limiter fired: true), a DIFFERENT staff member on the same IP logs in -> 200"
+  },
+  {
+    "id": "B8",
+    "area": "authn",
+    "sev": "high",
+    "ok": true,
+    "detail": "repeated wrong passwords against one account are throttled"
+  }
+]
