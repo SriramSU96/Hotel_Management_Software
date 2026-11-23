@@ -34,8 +34,8 @@
   --ease-out-soft: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-/* Global scale: Tailwind sizes/spacing are rem-based, so this shrinks text, padding, gaps and controls ~6% everywhere. Set back to 100% to undo. */
-html { -webkit-text-size-adjust: 100%; font-size: 93.75%; }
+/* Global scale: Tailwind sizes/spacing are rem-based, so this shrinks text, padding, gaps and controls everywhere (85% = 13.6px root). Raise it to make the whole app bigger, e.g. 93.75%. */
+html { -webkit-text-size-adjust: 100%; font-size: 85%; }
 html, body { overflow-x: clip; }
 body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-sans); min-height: 100dvh; }
 .font-ta { font-family: 'Noto Sans Tamil', 'DM Sans', sans-serif; }

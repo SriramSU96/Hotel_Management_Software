@@ -1,7 +1,7 @@
-import { type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ShieldCheck, ChartLineUp, CookingPot, DotsThree, Gear, MapPin, Package, Plus, Printer, Receipt, SignOut, Table, Users, Wallet, WifiSlash, ForkKnife, SquaresFour } from '@phosphor-icons/react';
+import { ShieldCheck, ChartLineUp, CaretLeft, CaretRight, CookingPot, DotsThree, Gear, MapPin, Package, Plus, Printer, Receipt, SignOut, Table, Users, Wallet, WifiSlash, ForkKnife, SquaresFour } from '@phosphor-icons/react';
 import { useAuth } from '../lib/auth';
 import { api } from '../lib/api';
 import { useLang, useT } from '../lib/i18n';
@@ -48,6 +48,11 @@ export default function Shell({ children }: { children: ReactNode }) {
   const settings = useSettings().data?.settings;
   const items = useNavItems();
 
+  // The arrow button on the sidebar edge folds the menu into an icon rail (left arrow) and opens it again (right arrow); the choice is remembered.
+  const [collapsed, setCollapsed] = useState(() => { try { return localStorage.getItem('ammas-sidebar') === '1'; } catch { return false; } });
+  const toggle = () => setCollapsed((c) => { const n = !c; try { localStorage.setItem('ammas-sidebar', n ? '1' : '0'); } catch { /* private mode */ } return n; });
+  const wide = !collapsed;
+
   const showPrint = can('printers.view') || can('orders.create');
   const ps = useQuery({ queryKey: ['print-status'], queryFn: () => api<any>('/printing/status'), enabled: showPrint, refetchInterval: 15_000 });
   const problems = (ps.data?.failed ?? 0) + (ps.data?.pending ?? 0);
@@ -66,7 +71,7 @@ export default function Shell({ children }: { children: ReactNode }) {
   const main = items.filter((i) => i.group === 'main');
   const tools = items.filter((i) => i.group === 'tools');
   const link = ({ isActive }: { isActive: boolean }) =>
-    `press relative flex min-h-11 items-center justify-center gap-3 rounded-lg px-3 text-[14px] min-[1100px]:justify-start min-[1100px]:px-3.5 ${isActive ? 'bg-white/10 font-semibold text-white before:absolute before:inset-y-2 before:-left-2.5 before:w-[3px] before:rounded-r before:bg-[#e2b765] min-[1100px]:before:-left-[18px]' : 'text-[#b9c8bd] hover:bg-white/5 hover:text-white'}`;
+    `press relative flex min-h-8 max-h-10 flex-1 basis-0 items-center justify-center gap-3 rounded-lg px-3 text-[13px] ${wide ? 'min-[1100px]:justify-start min-[1100px]:px-3.5' : ''} ${isActive ? `bg-white/10 font-semibold text-white before:absolute before:inset-y-2 before:-left-2.5 before:w-[3px] before:rounded-r before:bg-[#e2b765] ${wide ? 'min-[1100px]:before:-left-4' : ''}` : 'text-[#b9c8bd] hover:bg-white/5 hover:text-white'}`;
 
   // phone bottom bar: first four allowed screens + More (like the reference)
   const bottomOrder = ['/dashboard', '/pos', '/orders', '/verify', '/kitchen', '/stock'];
@@ -77,8 +82,8 @@ export default function Shell({ children }: { children: ReactNode }) {
       {list.map((i) => (
         <NavLink key={i.to} to={i.to} className={link} title={i.label} aria-label={i.label}>
           {() => (<>
-            <span className="shrink-0">{i.icon}</span><span className="hidden min-[1100px]:inline">{i.label}</span>
-            {i.to === '/prints' && problems > 0 && <span className="absolute right-1 top-1 grid min-w-5 place-items-center rounded-md bg-[#e2b765] px-1.5 text-[11px] font-semibold text-[#3b2a07] min-[1100px]:static min-[1100px]:ml-auto">{problems}</span>}
+            <span className="shrink-0">{i.icon}</span><span className={wide ? 'hidden min-[1100px]:inline' : 'hidden'}>{i.label}</span>
+            {i.to === '/prints' && problems > 0 && <span className={`absolute right-1 top-1 grid min-w-5 place-items-center rounded-md bg-[#e2b765] px-1.5 text-[11px] font-semibold text-[#3b2a07] ${wide ? 'min-[1100px]:static min-[1100px]:ml-auto' : ''}`}>{problems}</span>}
           </>)}
         </NavLink>
       ))}
@@ -88,31 +93,34 @@ export default function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-[100dvh]">
       {/* Sidebar: full on desktop, icon rail on tablet, hidden on phone */}
-      <aside className="no-print fixed inset-y-0 left-0 z-20 hidden w-[72px] flex-col bg-side px-2.5 pb-4 pt-6 text-[#f8f7ef] min-[640px]:flex min-[1100px]:w-[220px] min-[1100px]:px-[18px] min-[1280px]:w-[248px]">
-        <div className="flex items-center justify-center gap-3 min-[1100px]:justify-start min-[1100px]:px-2">
+      <aside className={`no-print fixed inset-y-0 left-0 z-20 hidden w-[72px] flex-col bg-side px-2.5 pb-3 pt-4 text-[#f8f7ef] transition-[width] duration-200 min-[640px]:flex ${wide ? 'min-[1100px]:w-[200px] min-[1100px]:px-4 min-[1280px]:w-[216px]' : ''}`}>
+        <button onClick={toggle} className="press absolute -right-3 top-[26px] z-30 hidden h-6 w-6 place-items-center rounded-full border border-line bg-card text-ink shadow-sm before:absolute before:-inset-2.5 before:content-[''] hover:bg-white min-[1100px]:grid" aria-label={collapsed ? 'Expand menu' : 'Collapse menu'} title={collapsed ? 'Expand menu' : 'Collapse menu'}>
+          {collapsed ? <CaretRight size={13} weight="bold" /> : <CaretLeft size={13} weight="bold" />}
+        </button>
+        <div className={`flex items-center justify-center gap-3 ${wide ? 'min-[1100px]:justify-start min-[1100px]:px-2' : ''}`}>
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-white/10 text-[#e2b765]"><CookingPot size={22} /></div>
-          <div className="hidden min-[1100px]:block"><p className="font-brand text-[24px] leading-none tracking-[1.5px]">AMMAS</p><p className="mt-1 text-[12px] text-[#9fb2a5]">Coimbatore</p></div>
+          <div className={wide ? 'hidden min-[1100px]:block' : 'hidden'}><p className="font-brand text-[24px] leading-none tracking-[1.5px]">AMMAS</p><p className="mt-1 text-[12px] text-[#9fb2a5]">Coimbatore</p></div>
         </div>
-        <nav className="mt-8 flex flex-1 flex-col gap-1 overflow-y-auto" aria-label="Main navigation">
+        <nav className="mt-6 flex min-h-0 flex-1 flex-col gap-1" aria-label="Main navigation">
           <NavList list={main} />
-          {main.length > 0 && tools.length > 0 && <div className="mx-2 my-2 h-px bg-white/10" />}
+          {main.length > 0 && tools.length > 0 && <div className="mx-2 my-1 h-px shrink-0 bg-white/10" />}
           <NavList list={tools} />
         </nav>
-        <div className="mt-3 flex flex-col items-center gap-3 border-t border-white/15 pt-4 min-[1100px]:flex-row min-[1100px]:px-1.5">
+        <div className={`mt-2 flex shrink-0 flex-col items-center gap-2 border-t border-white/15 pt-3 ${wide ? 'min-[1100px]:flex-row min-[1100px]:px-1.5' : ''}`}>
           <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white/10 text-[12px] font-semibold text-white">{initials}</div>
-          <div className="hidden min-w-0 min-[1100px]:block"><b className="block truncate text-[13px] font-medium">{me?.name}</b><small className="text-[12px] capitalize text-[#9fb2a5]">{me?.roleKey}</small></div>
-          <button onClick={logout} className="press grid h-11 w-11 place-items-center rounded-lg text-white hover:bg-white/10 min-[1100px]:ml-auto" aria-label={t('Sign out')} title={t('Sign out')}><SignOut size={20} /></button>
+          <div className={`min-w-0 ${wide ? 'hidden min-[1100px]:block' : 'hidden'}`}><b className="block truncate text-[13px] font-medium">{me?.name}</b><small className="text-[12px] capitalize text-[#9fb2a5]">{me?.roleKey}</small></div>
+          <button onClick={logout} className={`press grid h-10 w-10 place-items-center rounded-lg text-white hover:bg-white/10 ${wide ? 'min-[1100px]:ml-auto' : ''}`} aria-label={t('Sign out')} title={t('Sign out')}><SignOut size={20} /></button>
         </div>
       </aside>
 
-      <div className="flex min-h-[100dvh] flex-col min-[640px]:ml-[72px] min-[1100px]:ml-[220px] min-[1280px]:ml-[248px]">
-        <header className="no-print sticky top-0 z-10 flex min-h-[60px] items-center gap-3 border-b border-line bg-paper/90 px-4 backdrop-blur min-[640px]:min-h-[64px] min-[640px]:px-6 min-[1100px]:px-9">
+      <div className={`flex min-h-[100dvh] flex-col transition-[margin] duration-200 min-[640px]:ml-[72px] ${wide ? 'min-[1100px]:ml-[200px] min-[1280px]:ml-[216px]' : ''}`}>
+        <header className="no-print sticky top-0 z-10 flex min-h-[48px] items-center gap-3 border-b border-line bg-paper/90 px-4 backdrop-blur min-[640px]:min-h-[52px] min-[640px]:px-5 min-[1100px]:px-6">
           <div className="min-w-0 flex-1">
             <p className="truncate text-[14px] font-semibold min-[640px]:text-[15px]">{title}</p>
           </div>
           <div className="flex items-center gap-1.5">
             {showPrint && (
-              <NavLink to="/prints" className={`press inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-lg px-2.5 text-[13px] hover:bg-black/5 ${bridgeDown || problems ? 'text-warn' : 'text-ink-soft'}`} aria-label="Printer status">
+              <NavLink to="/prints" className={`press inline-flex min-h-9 min-w-9 items-center justify-center gap-2 rounded-lg px-2.5 text-[13px] hover:bg-black/5 ${bridgeDown || problems ? 'text-warn' : 'text-ink-soft'}`} aria-label="Printer status">
                 <span className={`h-2 w-2 rounded-full ${bridgeDown || problems ? 'pulse-dot bg-warn' : 'bg-ok'}`} />
                 <span className="hidden min-[768px]:inline">{bridgeDown ? 'Printer not connected' : problems ? `${problems} to print` : 'Printer ready'}</span>
               </NavLink>
@@ -120,19 +128,19 @@ export default function Shell({ children }: { children: ReactNode }) {
             <span className="hidden px-2.5 text-[13px] text-ink-soft min-[1100px]:inline">{settings?.restaurantName === 'AMMAS' || !settings ? 'Coimbatore' : settings.restaurantName} · {today}</span>
             <div className="inline-flex rounded-lg bg-black/[0.045] p-0.5" role="group" aria-label="Language">
               {(['en', 'ta'] as const).map((l) => (
-                <button key={l} onClick={() => { setLang(l); api('/auth/language', { method: 'POST', body: { language: l } }).catch(() => {}); }} aria-pressed={lang === l} className={`press min-h-11 min-w-11 rounded-md px-2.5 text-[13px] font-semibold ${lang === l ? 'bg-white text-ink shadow-sm' : 'text-ink-soft'} ${l === 'ta' ? 'font-ta' : ''}`}>{l === 'en' ? 'EN' : 'த'}</button>
+                <button key={l} onClick={() => { setLang(l); api('/auth/language', { method: 'POST', body: { language: l } }).catch(() => {}); }} aria-pressed={lang === l} className={`press min-h-9 min-w-9 rounded-md px-2.5 text-[13px] font-semibold ${lang === l ? 'bg-white text-ink shadow-sm' : 'text-ink-soft'} ${l === 'ta' ? 'font-ta' : ''}`}>{l === 'en' ? 'EN' : 'த'}</button>
               ))}
             </div>
           </div>
         </header>
 
         {!online && (
-          <div role="alert" className="flex items-center gap-3 bg-bad px-4 py-3 text-white min-[640px]:px-6 min-[1100px]:px-9"><WifiSlash size={22} /><p className="font-medium">{t('Connection lost. Nothing is saved until it comes back.')}</p></div>
+          <div role="alert" className="flex items-center gap-3 bg-bad px-4 py-3 text-white min-[640px]:px-5 min-[1100px]:px-6"><WifiSlash size={22} /><p className="font-medium">{t('Connection lost. Nothing is saved until it comes back.')}</p></div>
         )}
         {online && !live && (
-          <div role="status" className="flex items-center gap-3 bg-gold-soft px-4 py-2 text-sm font-medium text-warn min-[640px]:px-6 min-[1100px]:px-9"><WifiSlash size={18} /><p>No live connection. Reconnecting...</p></div>
+          <div role="status" className="flex items-center gap-3 bg-gold-soft px-4 py-2 text-sm font-medium text-warn min-[640px]:px-5 min-[1100px]:px-6"><WifiSlash size={18} /><p>No live connection. Reconnecting...</p></div>
         )}
-        <main className="mx-auto w-full max-w-[1800px] flex-1 px-4 pb-28 pt-5 min-[640px]:px-6 min-[640px]:pb-12 min-[1100px]:px-9">{children}</main>
+        <main className="mx-auto w-full max-w-[1800px] flex-1 px-4 pb-28 pt-4 min-[640px]:px-5 min-[640px]:pb-8 min-[1100px]:px-6">{children}</main>
       </div>
 
       {/* Phone bottom bar */}

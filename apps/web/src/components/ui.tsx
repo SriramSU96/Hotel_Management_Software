@@ -14,7 +14,7 @@ const V: Record<Variant, string> = {
 };
 
 export function Button({ variant = 'primary', size = 'md', className = '', children, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: 'sm' | 'md' | 'lg' }) {
-  const sz = size === 'lg' ? 'min-h-14 px-6 text-lg' : size === 'sm' ? 'min-h-11 px-4 text-sm' : 'min-h-12 px-5 text-base';
+  const sz = size === 'lg' ? 'min-h-12 px-5 text-base' : size === 'sm' ? 'min-h-9 px-3 text-sm' : 'min-h-10 px-4 text-[15px]';
   return (
     <button {...rest} className={`press inline-flex items-center justify-center gap-2 rounded-lg font-semibold disabled:opacity-45 disabled:cursor-not-allowed ${sz} ${V[variant]} ${className}`}>
       {children}
@@ -32,7 +32,7 @@ export function Skeleton({ className = 'h-24' }: { className?: string }) {
 
 export function Empty({ title, hint, icon }: { title: string; hint?: string; icon?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-line px-6 py-14 text-center text-ink-soft">
+    <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-line px-6 py-10 text-center text-ink-soft">
       {icon && <div className="text-forest/60">{icon}</div>}
       <p className="text-lg font-medium text-ink">{title}</p>
       {hint && <p className="max-w-sm text-sm">{hint}</p>}
@@ -56,7 +56,7 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
   );
 }
 
-export const inputCls = 'min-h-12 w-full rounded-lg border border-line bg-white px-4 text-base text-ink placeholder:text-ink-soft/60 focus:border-forest focus:outline-none focus:ring-2 focus:ring-forest/20';
+export const inputCls = 'min-h-10 w-full rounded-lg border border-line bg-white px-3.5 text-[15px] text-ink placeholder:text-ink-soft/60 focus:border-forest focus:outline-none focus:ring-2 focus:ring-forest/20';
 
 export function Modal({ open, onClose, title, children, wide }: { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean }) {
   const t = useT();
@@ -69,10 +69,10 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-[#0d2a20]/45 p-0 backdrop-blur-[2px] min-[640px]:items-center min-[640px]:p-6" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div role="dialog" aria-modal="true" aria-label={title} className={`rise max-h-[92dvh] w-full overflow-y-auto rounded-t-2xl bg-card p-6 shadow-[0_24px_60px_-20px_rgba(15,40,30,.35)] min-[640px]:rounded-2xl ${wide ? 'min-[640px]:max-w-3xl' : 'min-[640px]:max-w-lg'}`}>
+      <div role="dialog" aria-modal="true" aria-label={title} className={`rise max-h-[92dvh] w-full overflow-y-auto rounded-t-2xl bg-card p-5 shadow-[0_24px_60px_-20px_rgba(15,40,30,.35)] min-[640px]:rounded-2xl ${wide ? 'min-[640px]:max-w-3xl' : 'min-[640px]:max-w-lg'}`}>
         <div className="mb-4 flex items-start justify-between gap-4">
-          <h2 className="text-xl font-semibold">{title}</h2>
-          <button onClick={onClose} aria-label={t('Close')} className="press grid h-11 w-11 place-items-center rounded-full ring-1 ring-line"><X size={20} /></button>
+          <h2 className="text-lg font-semibold">{title}</h2>
+          <button onClick={onClose} aria-label={t('Close')} className="press grid h-9 w-9 place-items-center rounded-full ring-1 ring-line"><X size={20} /></button>
         </div>
         {children}
       </div>
@@ -119,7 +119,7 @@ export function Segmented<T extends string>({ value, onChange, options }: { valu
     <div role="tablist" className="inline-flex gap-1 border-b border-line">
       {options.map((o) => (
         <button key={o.value} role="tab" aria-selected={value === o.value} onClick={() => onChange(o.value)}
-          className={`press relative inline-flex min-h-11 items-center gap-2 whitespace-nowrap px-3 text-[14px] after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full ${value === o.value ? 'font-semibold text-forest after:bg-forest' : 'font-medium text-ink-soft after:bg-transparent hover:text-ink'}`}>
+          className={`press relative inline-flex min-h-10 items-center gap-2 whitespace-nowrap px-3 text-[14px] after:absolute after:inset-x-2 after:-bottom-px after:h-0.5 after:rounded-full ${value === o.value ? 'font-semibold text-forest after:bg-forest' : 'font-medium text-ink-soft after:bg-transparent hover:text-ink'}`}>
           {o.icon}{o.label}
         </button>
       ))}
@@ -129,9 +129,9 @@ export function Segmented<T extends string>({ value, onChange, options }: { valu
 
 export function PageHead({ title, sub, action }: { title: string; sub?: string; action?: ReactNode; eyebrow?: string }) {
   return (
-    <div className="mb-6 flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+    <div className="mb-4 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
       <div className="min-w-0">
-        <h1 className="text-[24px] font-semibold leading-tight min-[640px]:text-[26px]">{title}</h1>
+        <h1 className="text-[20px] font-semibold leading-tight min-[640px]:text-[22px]">{title}</h1>
         {sub && <p className="mt-1 text-[14px] text-ink-soft">{sub}</p>}
       </div>
       {action}

@@ -82,24 +82,24 @@ export default function POS() {
     <div className="grid grid-cols-[minmax(0,1fr)] gap-4 min-[760px]:grid-cols-[minmax(0,1fr)_330px] min-[1100px]:grid-cols-[minmax(0,1.45fr)_minmax(340px,.8fr)] min-[1100px]:gap-5">
       <section>
         {quick.length > 0 && !q.trim() && (
-          <div className="mb-5">
+          <div className="mb-3">
             <p className="mb-2 flex items-center gap-1.5 text-[13px] font-medium text-gold"><Star size={14} weight="fill" />{t('Quick order')}</p>
-            <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 min-[640px]:mx-0 min-[640px]:grid min-[640px]:grid-cols-3 min-[640px]:overflow-visible min-[640px]:px-0 min-[640px]:pb-0 min-[1000px]:grid-cols-4">
+            <div className="-mx-3 flex gap-2 overflow-x-auto px-3 pb-1 min-[640px]:mx-0 min-[640px]:grid min-[640px]:grid-cols-3 min-[640px]:overflow-visible min-[640px]:px-0 min-[640px]:pb-0 min-[1000px]:grid-cols-4 min-[1500px]:grid-cols-5">
               {quick.map((p) => {
                 const n = qtyOf(p._id);
                 return (
                   <button key={p._id} onClick={() => cart.add(p)} aria-label={`${nm(p)} ${inr(priceFor(p, cart.type), { short: true })}`}
-                    className={`press relative flex min-h-16 w-[140px] shrink-0 min-[640px]:w-auto min-[640px]:shrink flex-col items-start justify-center rounded-lg border bg-card px-3 py-2 text-left ${n > 0 ? 'border-forest ring-1 ring-forest' : 'border-line'}`}>
-                    <span className="line-clamp-2 w-full pr-1 text-[15px] font-medium leading-tight">{nm(p)}</span>
+                    className={`press relative flex min-h-12 w-[128px] shrink-0 min-[640px]:w-auto min-[640px]:shrink flex-col items-start justify-center rounded-lg border bg-card px-3 py-2 text-left ${n > 0 ? 'border-forest ring-1 ring-forest' : 'border-line'}`}>
+                    <span className="line-clamp-2 w-full pr-1 text-[13px] font-medium leading-tight">{nm(p)}</span>
                     <span className="num text-sm font-semibold text-forest">{inr(priceFor(p, cart.type), { short: true })}</span>
-                    {n > 0 && <span className="num absolute bottom-2 right-2 grid h-7 min-w-7 place-items-center rounded-md bg-forest px-1.5 text-sm font-semibold text-white">{n}</span>}
+                    {n > 0 && <span className="num absolute bottom-1.5 right-1.5 grid h-6 min-w-6 place-items-center rounded-md bg-forest px-1.5 text-[13px] font-semibold text-white">{n}</span>}
                   </button>
                 );
               })}
             </div>
           </div>
         )}
-        <div className="mb-4 flex flex-col gap-3">
+        <div className="mb-3 flex flex-col gap-2.5">
           <div className="relative">
             <MagnifyingGlass size={22} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-soft" />
             <input className={`${inputCls} pl-12`} placeholder={t('Search food')} value={q} onChange={(e) => setQ(e.target.value)} aria-label={t('Search food')} />
@@ -107,18 +107,18 @@ export default function POS() {
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 min-[640px]:mx-0 min-[640px]:px-0">
             {[{ _id: 'ALL', name: t('All'), nameTa: t('All') }, ...(cats.data ?? []).filter((c) => c.active)].map((c) => (
               <button key={c._id} onClick={() => setCat(c._id)} aria-pressed={cat === c._id}
-                className={`press inline-flex min-h-11 shrink-0 items-center rounded-lg px-4 text-[14px] font-medium ${cat === c._id ? 'bg-ink text-white' : 'bg-black/[0.045] text-ink hover:bg-black/[0.075]'}`}>
+                className={`press inline-flex min-h-9 shrink-0 items-center rounded-lg px-3.5 text-[13px] font-medium ${cat === c._id ? 'bg-ink text-white' : 'bg-black/[0.045] text-ink hover:bg-black/[0.075]'}`}>
                 {c._id === 'ALL' ? c.name : nm(c)}
               </button>))}
           </div>
         </div>
 
         {products.isLoading ? (
-          <div className="grid grid-cols-2 gap-3 min-[560px]:grid-cols-3 min-[760px]:grid-cols-2 min-[1000px]:grid-cols-3 min-[1500px]:grid-cols-4">{Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-52" />)}</div>
+          <div className="grid grid-cols-2 gap-3 min-[560px]:grid-cols-3 min-[760px]:grid-cols-2 min-[1000px]:grid-cols-3 min-[1500px]:grid-cols-4 min-[1750px]:grid-cols-5">{Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-40" />)}</div>
         ) : products.error ? <ErrorNote error={products.error} />
         : visible.length === 0 ? <Empty title="Nothing found" hint="Try another word or category." icon={<ForkKnife size={36} />} />
         : (
-          <div className="grid grid-cols-2 gap-3 min-[560px]:grid-cols-3 min-[760px]:grid-cols-2 min-[1000px]:grid-cols-3 min-[1500px]:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 min-[560px]:grid-cols-3 min-[760px]:grid-cols-2 min-[1000px]:grid-cols-3 min-[1500px]:grid-cols-4 min-[1750px]:grid-cols-5">
             {visible.map((p, i) => <ProductTile key={p._id} p={p} index={i} type={cart.type} qty={qtyOf(p._id)} onTap={() => cart.add(p)} onMinus={() => cart.setQty(p._id, qtyOf(p._id) - 1)} />)}
           </div>
         )}
@@ -126,7 +126,7 @@ export default function POS() {
 
       {/* Always-visible order on large screens */}
       <aside className="hidden min-[760px]:block">
-        <div className="sticky top-[100px] max-h-[calc(100dvh-7rem)] overflow-y-auto rounded-[10px] border border-line bg-card shadow-soft">{cartPanel}</div>
+        <div className="sticky top-[64px] max-h-[calc(100dvh-4.75rem)] overflow-y-auto rounded-[10px] border border-line bg-card shadow-soft">{cartPanel}</div>
       </aside>
 
       {/* Phone / portrait tablet: floating bar opens the order */}
@@ -153,10 +153,10 @@ function CartPanel({ totals, count, needsTable, busy, error, onConfirm, onNote, 
   const cart = useCart();
   const [more, setMore] = useState(false);
   return (
-    <div className="flex flex-col gap-4 p-5">
+    <div className="flex flex-col gap-3 p-4">
       <div className={`grid gap-1.5 ${parcel ? 'grid-cols-3' : 'grid-cols-2'}`} role="tablist">
         {([['DINE_IN', t('Eat here'), <ForkKnife size={20} key="d" />], ['TAKEAWAY', t('Takeaway'), <Bag size={20} key="t" />], ...(parcel ? [['PARCEL', t('Parcel'), <PackageIcon size={20} key="p" />]] : [])] as [any, string, React.ReactNode][]).map(([v, label, icon]) => (
-          <button key={v} role="tab" aria-selected={cart.type === v} onClick={() => cart.setType(v)} className={`press grid min-h-14 place-items-center content-center gap-0.5 rounded-lg border px-1 text-[13px] ${cart.type === v ? 'border-forest bg-forest-soft font-semibold text-forest ring-1 ring-forest' : 'border-line bg-card text-ink-soft'}`}>{icon}<span className="max-w-full truncate">{label}</span></button>
+          <button key={v} role="tab" aria-selected={cart.type === v} onClick={() => cart.setType(v)} className={`press grid min-h-11 place-items-center content-center gap-0.5 rounded-lg border px-1 text-[12px] ${cart.type === v ? 'border-forest bg-forest-soft font-semibold text-forest ring-1 ring-forest' : 'border-line bg-card text-ink-soft'}`}>{icon}<span className="max-w-full truncate">{label}</span></button>
         ))}
       </div>
 
@@ -179,26 +179,27 @@ function CartPanel({ totals, count, needsTable, busy, error, onConfirm, onNote, 
         </div>
       )}
 
-      <div className="border-t border-line pt-4">
+      <div className="border-t border-line pt-3">
         {cart.lines.length === 0 ? (
           <div className="py-8 text-center text-ink-soft"><ShoppingCartSimple size={40} className="mx-auto mb-2 text-forest/40" /><p className="font-medium text-ink">{t('Your order is empty')}</p><p className="text-sm">{t('Tap a food to add it')}</p></div>
         ) : (
           <ul className="flex flex-col divide-y divide-line">
             {cart.lines.map((l) => (
-              <li key={l.productId} className="py-3">
+              <li key={l.productId} className="py-2">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="font-medium leading-snug">{nm(l)}</p>
                     <p className="num text-sm text-ink-soft">{inr(l.pricePaise, { short: true })}</p>
                     {l.note && <p className="mt-1 text-sm text-warn">{l.note}</p>}
                   </div>
-                  <p className="num shrink-0 text-lg font-medium">{inr(l.pricePaise * l.qty, { short: true })}</p>
+                  <p className="num shrink-0 text-base font-medium">{inr(l.pricePaise * l.qty, { short: true })}</p>
                 </div>
-                <div className="mt-2 flex items-center gap-2">
-                  <button onClick={() => cart.setQty(l.productId, l.qty - 1)} aria-label="Less" className="press grid h-12 w-12 place-items-center rounded-lg bg-forest-soft text-forest">{l.qty === 1 ? <Trash size={22} /> : <Minus size={22} weight="bold" />}</button>
-                  <span className="num w-10 text-center text-xl font-bold">{l.qty}</span>
-                  <button onClick={() => cart.setQty(l.productId, l.qty + 1)} aria-label="More" className="press grid h-12 w-12 place-items-center rounded-lg bg-forest text-white"><Plus size={22} weight="bold" /></button>
-                  <button onClick={() => onNote(l.productId)} className="press ml-auto inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm text-ink-soft ring-1 ring-line"><NotePencil size={18} />{t('Add note')}</button>
+                <div className="mt-1.5 flex items-center gap-1.5">
+                  <button onClick={() => cart.setQty(l.productId, l.qty - 1)} aria-label="Less" className="press grid h-9 w-9 place-items-center rounded-lg bg-forest-soft text-forest">{l.qty === 1 ? <Trash size={18} /> : <Minus size={18} weight="bold" />}</button>
+                  <span className="num w-8 text-center text-lg font-bold">{l.qty}</span>
+                  <button onClick={() => cart.setQty(l.productId, l.qty + 1)} aria-label="More" className="press grid h-9 w-9 place-items-center rounded-lg bg-forest text-white"><Plus size={18} weight="bold" /></button>
+                  <button onClick={() => cart.setQty(l.productId, 0)} aria-label={t('Delete item')} title={t('Delete item')} className="press grid h-9 w-9 place-items-center rounded-lg bg-bad/10 text-bad hover:bg-bad/20"><Trash size={18} /></button>
+                  <button onClick={() => onNote(l.productId)} className="press ml-auto inline-flex min-h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] text-ink-soft ring-1 ring-line"><NotePencil size={16} />{t('Add note')}</button>
                 </div>
               </li>
             ))}
@@ -221,11 +222,11 @@ function CartPanel({ totals, count, needsTable, busy, error, onConfirm, onNote, 
               <input className={`${inputCls} num max-w-32 text-right`} inputMode="decimal" value={cart.discountPaise ? cart.discountPaise / 100 : ''} onChange={(e) => cart.setDiscount(Math.max(0, Math.round(Number(e.target.value || 0) * 100)))} />
             </label>
           )}
-          <dl className="flex flex-col gap-1.5 border-t border-line pt-4 text-[15px]">
+          <dl className="flex flex-col gap-1.5 border-t border-line pt-3 text-[14px]">
             <div className="flex justify-between"><dt className="text-ink-soft">{t('Subtotal')}</dt><dd className="num">{inr(totals.subtotal)}</dd></div>
             {totals.discount > 0 && <div className="flex justify-between"><dt className="text-ink-soft">{t('Discount')}</dt><dd className="num">−{inr(totals.discount)}</dd></div>}
             {totals.tax > 0 && <div className="flex justify-between"><dt className="text-ink-soft">{t('Tax')} {totals.taxBp / 100}%{totals.taxMode === 'INCLUSIVE' ? ' (incl.)' : ''}</dt><dd className="num">{inr(totals.tax)}</dd></div>}
-            <div className="mt-1 flex items-baseline justify-between"><dt className="text-lg font-medium">{t('Total')}</dt><dd className="num text-3xl font-bold text-forest">{inr(totals.total)}</dd></div>
+            <div className="mt-1 flex items-baseline justify-between"><dt className="text-base font-medium">{t('Total')}</dt><dd className="num text-2xl font-bold text-forest">{inr(totals.total)}</dd></div>
           </dl>
           <ErrorNote error={error} />
           <Button size="lg" variant="primary" disabled={busy || needsTable} onClick={onConfirm}>{busy ? '...' : t('Confirm Order')}</Button>
@@ -247,7 +248,7 @@ function NoteModal({ id, onClose }: { id: string | null; onClose: () => void }) 
     <Modal open={!!id} onClose={onClose} title={t('Add note')}>
       <p className="mb-3 font-medium">{line?.name}</p>
       <div className="mb-3 flex flex-wrap gap-2">
-        {quick.map((n) => <button key={n} onClick={() => setV(n)} className="press min-h-11 rounded-lg px-4 text-sm ring-1 ring-line hover:bg-forest-soft">{n}</button>)}
+        {quick.map((n) => <button key={n} onClick={() => setV(n)} className="press min-h-9 rounded-lg px-3.5 text-sm ring-1 ring-line hover:bg-forest-soft">{n}</button>)}
       </div>
       <input className={inputCls} maxLength={80} value={v} onChange={(e) => setV(e.target.value)} placeholder={t('Add note')} autoFocus />
       <div className="mt-5 flex gap-3">

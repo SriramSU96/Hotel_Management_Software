@@ -58,11 +58,15 @@ export default function BillModal({ orderId, onDone }: { orderId: string; onDone
     onSuccess: () => qc.invalidateQueries({ queryKey: ['order', orderId] }),
     onError: (e) => toast.error(errText(e)),
   });
-  const complete = useMutation({
-    mutationFn: () => api(`/orders/${orderId}/complete`, { method: 'POST', body: {} }),
-    onSuccess: () => { qc.invalidateQueries(); toast.ok(t('Done')); onDone(); },
-    onError: (e) => toast.error(errText(e)),
-  });
+  // After payment: print the bill and close the popup straight away (no second "Paid" screen).
+  // Browser mode prints from this computer; if the printer did not respond, the failed bill is sent again.
+  // A bill that is already printing or printed is not printed twice.
+  const onPaid = () => {
+    if (state === 'browser') printNow('BILL');
+    else if (state === 'failed' && bill) retry.mutate();
+    qc.invalidateQueries();
+    onDone();
+  };
 
   if (!order) return <Modal open onClose={() => {}} title="..."><p className="text-ink-soft">Loading...</p></Modal>;
   const due = order.totalPaise - order.paidPaise;
@@ -122,7 +126,7 @@ export default function BillModal({ orderId, onDone }: { orderId: string; onDone
         </div>
 
         <div>
-          {due > 0 ? <PaymentForm order={order} due={due} canPay={can('payments.record')} /> : (
+          {due > 0 ? <PaymentForm order={order} due={due} canPay={can('payments.record')} onPaid={onPaid} /> : (
             <div className="rounded-[10px] bg-forest-soft p-6 text-forest">
               <CheckCircle size={40} weight="fill" />
               <p className="mt-2 text-xl font-bold">{t('Paid')}</p>
@@ -130,10 +134,7 @@ export default function BillModal({ orderId, onDone }: { orderId: string; onDone
             </div>
           )}
           <div className="mt-6 flex flex-col gap-2">
-            {order.paymentStatus === 'PAID' && can('orders.complete') && order.status !== 'COMPLETED' && (
-              <Button variant="soft" onClick={() => complete.mutate()} disabled={complete.isPending}>{t('Mark order complete')}</Button>
-            )}
-            <Button variant={due > 0 ? 'ghost' : 'primary'} size="lg" onClick={onDone}>{due > 0 ? 'Pay later' : t('Start next order')}</Button>
+            <Button variant={due > 0 ? 'ghost' : 'primary'} size="lg" onClick={onDone}>{due > 0 ? 'Pay later' : 'Close'}</Button>
           </div>
         </div>
       </div>
@@ -149,13 +150,11 @@ function Status({ icon, tone, title, sub }: { icon: React.ReactNode; tone: 'ok' 
   );
 }
 
-function PaymentForm({ order, due, canPay }: { order: any; due: number; canPay: boolean }) {
+function PaymentForm({ order, due, canPay, onPaid }: { order: any; due: number; canPay: boolean; onPaid: () => void }) {
   const t = useT();
   const qc = useQueryClient();
   const [method, setMethod] = useState<'CASH' | 'UPI'>('CASH');
   const [given, setGiven] = useState('');
-  const [verified, setVerified] = useState(false);
-  const [ref, setRef] = useState('');
   // a new key per payment attempt; reused on retry so a double tap cannot take the money twice
   const key = useRef(uid());
 
@@ -164,10 +163,10 @@ function PaymentForm({ order, due, canPay }: { order: any; due: number; canPay: 
       body: {
         idempotencyKey: key.current, method, amountPaise: due,
         tenderedPaise: method === 'CASH' && given ? toPaise(given) : undefined,
-        upiVerified: method === 'UPI' ? verified : undefined, upiRef: ref || undefined,
+        upiVerified: method === 'UPI' ? true : undefined, // tapping "Payment Paid" is the cashier's confirmation
       },
     }),
-    onSuccess: () => { key.current = uid(); setGiven(''); setVerified(false); setRef(''); qc.invalidateQueries({ queryKey: ['order', order._id] }); qc.invalidateQueries({ queryKey: ['orders'] }); toast.ok(t('Paid')); },
+    onSuccess: () => { key.current = uid(); setGiven(''); qc.invalidateQueries({ queryKey: ['order', order._id] }); qc.invalidateQueries({ queryKey: ['orders'] }); toast.ok(t('Paid')); onPaid(); },
     onError: (e) => toast.error(errText(e)),
   });
 
@@ -194,17 +193,9 @@ function PaymentForm({ order, due, canPay }: { order: any; due: number; canPay: 
             ? <p className="rounded-lg bg-forest-soft px-4 py-3 font-medium text-forest">{t('Change to give')}: <span className="num text-xl font-bold">{inr(change)}</span></p>
             : <p className="rounded-lg bg-[#f7e3df] px-4 py-3 font-medium text-bad">Short by <span className="num font-bold">{inr(-change)}</span></p>)}
         </>
-      ) : (
-        <>
-          <label className="flex min-h-14 cursor-pointer items-start gap-3 rounded-lg border border-line bg-white p-4">
-            <input type="checkbox" checked={verified} onChange={(e) => setVerified(e.target.checked)} className="mt-1 h-6 w-6 accent-[#1f3d2e]" />
-            <span className="font-medium">{t('I have seen the money in the UPI app')}</span>
-          </label>
-          <input className={inputCls} value={ref} onChange={(e) => setRef(e.target.value)} placeholder="UPI reference (last 4-6 digits, optional)" maxLength={40} />
-        </>
-      )}
+      ) : null}
       <ErrorNote error={pay.error} />
-      <Button size="lg" onClick={() => pay.mutate()} disabled={pay.isPending || (method === 'UPI' && !verified) || (method === 'CASH' && change !== null && change < 0)}>{t('Record Payment')}</Button>
+      <Button size="lg" onClick={() => pay.mutate()} disabled={pay.isPending || (method === 'CASH' && change !== null && change < 0)}>Payment Paid</Button>
     </div>
   );
 }

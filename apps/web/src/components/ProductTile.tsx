@@ -24,22 +24,22 @@ export default function ProductTile({ p, qty, onTap, onMinus, index, type = 'DIN
     >
       {/* photo + name: tapping still adds one */}
       <button onClick={onTap} disabled={off} aria-label={`${nm(p)} ${inr(price, { short: true })}`} className="press flex flex-1 flex-col text-left">
-        <div className="relative aspect-[4/3] w-full overflow-hidden bg-[#eee9df]">
+        <div className="relative aspect-[16/10] w-full overflow-hidden bg-[#eee9df]">
           <Photo p={p} className="h-full w-full transition-transform duration-500 ease-out-soft group-hover:scale-[1.045]" />
           {off && <span className="absolute inset-0 grid place-items-center bg-ink/55 text-sm font-semibold text-white">{p.status === 'SOLD_OUT' ? t('Sold out') : t('Unavailable')}</span>}
         </div>
-        <p className={`px-3 pt-3 text-[14px] font-medium leading-snug ${lang === 'ta' ? 'font-ta' : ''}`}>{nm(p)}</p>
+        <p className={`px-2.5 pt-2 text-[13px] font-medium leading-snug ${lang === 'ta' ? 'font-ta' : ''}`}>{nm(p)}</p>
       </button>
-      <div className="flex items-center justify-between gap-2 px-3 pb-3 pt-2">
-        <p className="num text-[15px] font-semibold">{inr(price, { short: true })}</p>
+      <div className="flex items-center justify-between gap-2 px-2.5 pb-2.5 pt-1.5">
+        <p className="num text-[14px] font-semibold">{inr(price, { short: true })}</p>
         {qty > 0 && !off ? (
           <div className="inline-flex items-center rounded-lg bg-forest text-white" role="group" aria-label={`${nm(p)} quantity`}>
-            <button onClick={onMinus} aria-label="Less" className="press grid h-10 w-10 place-items-center rounded-l-lg hover:bg-forest-deep">{qty === 1 ? <Trash size={18} /> : <Minus size={18} weight="bold" />}</button>
-            <span className="num mx-0.5 grid h-8 min-w-8 place-items-center rounded-md bg-forest-soft px-1.5 text-[15px] font-bold text-forest" aria-live="polite">{qty}</span>
-            <button onClick={onTap} aria-label="More" className="press grid h-10 w-10 place-items-center rounded-r-lg hover:bg-forest-deep"><Plus size={18} weight="bold" /></button>
+            <button onClick={onMinus} aria-label="Less" className="press grid h-8 w-8 place-items-center rounded-l-lg hover:bg-forest-deep">{qty === 1 ? <Trash size={16} /> : <Minus size={16} weight="bold" />}</button>
+            <span className="num mx-0.5 grid h-6 min-w-7 place-items-center rounded-md bg-forest-soft px-1.5 text-[14px] font-bold text-forest" aria-live="polite">{qty}</span>
+            <button onClick={onTap} aria-label="More" className="press grid h-8 w-8 place-items-center rounded-r-lg hover:bg-forest-deep"><Plus size={16} weight="bold" /></button>
           </div>
         ) : (
-          <button onClick={onTap} disabled={off} aria-label={`Add ${nm(p)}`} className="press grid h-10 w-10 place-items-center rounded-lg bg-forest-soft text-forest transition-colors hover:bg-forest hover:text-white disabled:opacity-50"><Plus size={20} weight="bold" /></button>
+          <button onClick={onTap} disabled={off} aria-label={`Add ${nm(p)}`} className="press grid h-8 w-8 place-items-center rounded-lg bg-forest-soft text-forest transition-colors hover:bg-forest hover:text-white disabled:opacity-50"><Plus size={18} weight="bold" /></button>
         )}
       </div>
     </div>
