@@ -1,6 +1,6 @@
 import { Expense, Ingredient, Order, Payment, Product, Refund, StockMovement } from '../models/index.js';
 import { getSettings, lowStockItems } from './core.js';
-import { localWeekday, previousRange, type DateRange } from '../lib/time.js';
+import { addDays, localWeekday, previousRange, startOfLocalDay, type DateRange } from '../lib/time.js';
 import { paiseToString } from '../lib/money.js';
 
 const hourOf = (d: Date, tz: string) =>
@@ -19,12 +19,13 @@ interface Core {
   upiPaise: number;
   pendingPaise: number;
   cancelled: number;
+  completed: number;
   expensesPaise: number;
   purchasesPaise: number;
 }
 
 async function core(r: DateRange): Promise<Core> {
-  const orders = await Order.find({ confirmedAt: { $gte: r.from, $lt: r.to }, status: { $ne: 'CANCELLED' } }).select('subtotalPaise discountPaise taxPaise totalPaise paidPaise refundedPaise');
+  const orders = await Order.find({ confirmedAt: { $gte: r.from, $lt: r.to }, status: { $ne: 'CANCELLED' } }).select('subtotalPaise discountPaise taxPaise totalPaise paidPaise refundedPaise status');
   const [pay, ref, cancelled, exp, pur] = await Promise.all([
     Payment.aggregate([{ $match: { createdAt: { $gte: r.from, $lt: r.to } } }, { $group: { _id: '$method', t: { $sum: '$amountPaise' } } }]),
     Refund.aggregate([{ $match: { createdAt: { $gte: r.from, $lt: r.to } } }, { $group: { _id: null, t: { $sum: '$amountPaise' } } }]),
@@ -48,6 +49,7 @@ async function core(r: DateRange): Promise<Core> {
     upiPaise: pay.find((p) => p._id === 'UPI')?.t ?? 0,
     pendingPaise: orders.reduce((a, o) => a + Math.max(0, o.totalPaise - o.paidPaise), 0),
     cancelled,
+    completed: orders.filter((o) => o.status === 'COMPLETED').length,
     expensesPaise: exp[0]?.t ?? 0,
     purchasesPaise: pur[0]?.t ?? 0,
   };
@@ -130,6 +132,17 @@ export async function buildSummary(r: DateRange, withCompare = true) {
     ]),
   ]);
 
+  // Last 7 days after expenses (still before ingredient cost), and for a one-day view the same weekday last week.
+  const weekExp = await Expense.aggregate([{ $match: { date: { $gte: startOfLocalDay(daily[0].date, tz) }, voided: { $ne: true } } }, { $group: { _id: null, t: { $sum: '$amountPaise' } } }]);
+  const week = { netPaise: daily.reduce((a, x) => a + x.salesPaise, 0), expensesPaise: weekExp[0]?.t ?? 0 };
+  let lastWeek: { weekday: number; netPaise: number } | null = null;
+  if (r.fromDate === r.toDate) {
+    const lw = addDays(r.fromDate, -7);
+    const lwFrom = startOfLocalDay(lw, tz);
+    const x = await core({ from: lwFrom, to: startOfLocalDay(addDays(lw, 1), tz), fromDate: lw, toDate: lw, label: lw });
+    lastWeek = { weekday: localWeekday(lwFrom, tz), netPaise: x.netPaise };
+  }
+
   // Profit honesty: without a recipe/consumption mapping there is no COGS, so no real profit.
   const profit = {
     available: false as const,
@@ -146,7 +159,7 @@ export async function buildSummary(r: DateRange, withCompare = true) {
 
   return {
     range: { from: r.fromDate, to: r.toDate, label: r.label, timezone: tz },
-    current, previous, profit,
+    current, previous, profit, week, lastWeek,
     hourly: hours,
     weekday,
     daily,

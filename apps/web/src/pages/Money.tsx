@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Plus } from '@phosphor-icons/react';
+import { PencilSimple, Plus, Trash } from '@phosphor-icons/react';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { fmtDateTime, inr, toPaise } from '../lib/format';
 import { useT } from '../lib/i18n';
-import { Badge, Button, Card, ConfirmDialog, Empty, ErrorNote, Field, Modal, PageHead, Segmented, Skeleton, inputCls } from '../components/ui';
+import { Badge, Button, Card, ConfirmDialog, Empty, ErrorNote, Field, IconButton, Modal, PageHead, Segmented, Skeleton, inputCls } from '../components/ui';
+import { DataTable, FilterSelect, Pagination, SearchBox, usePaged, type Column, type Sort } from '../components/DataTable';
 import { errText, toast } from '../lib/toast';
 
 const CATS = ['Ingredients', 'Gas', 'Salary', 'Rent', 'Electricity', 'Water', 'Transport', 'Repairs', 'Other'];
@@ -80,23 +81,84 @@ function Expenses() {
   const q = useQuery({ queryKey: ['expenses', range], queryFn: () => api<{ expenses: any[]; totalPaise: number }>(`/finance/expenses?range=${range}`) });
   const [open, setOpen] = useState(false);
   const [del, setDel] = useState<any>(null);
+  const [editId, setEditId] = useState<string | null>(null);
+  const openEdit = (e: any) => {
+    setF({ category: e.category, amount: String(e.amountPaise / 100), date: String(e.date).slice(0, 10), method: e.method, vendor: e.vendor ?? '', note: e.note ?? '' });
+    setEditId(e._id);
+    setOpen(true);
+  };
+  const rowActions = (e: any) => (
+    <span className="inline-flex items-center justify-end gap-1.5">
+      <IconButton label={t('Edit')} onClick={() => openEdit(e)}><PencilSimple size={16} /></IconButton>
+      <IconButton label={t('Delete')} tone="danger" onClick={() => setDel(e)}><Trash size={16} /></IconButton>
+    </span>
+  );
+  const [search, setSearch] = useState('');
+  const [cat, setCat] = useState('ALL');
+  const [method, setMethod] = useState('ALL');
+  const [sort, setSort] = useState<Sort>({ key: 'date', dir: 'desc' });
+  const rows = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    return (q.data?.expenses ?? [])
+      .filter((e) => (cat === 'ALL' || e.category === cat) && (method === 'ALL' || e.method === method) && (!term || [e.category, e.vendor, e.note, e.createdByName].some((x) => (x ?? '').toLowerCase().includes(term))))
+      .sort((a, b) => (sort.key === 'amount' ? a.amountPaise - b.amountPaise : String(a.date).localeCompare(String(b.date))) * dir);
+  }, [q.data, search, cat, method, sort]);
+  const paged = usePaged(rows, 10);
+  const dirty = !!search || cat !== 'ALL' || method !== 'ALL';
+  const reset = () => { setSearch(''); setCat('ALL'); setMethod('ALL'); paged.resetPage(); };
+  const columns: Column<any>[] = [
+    { key: 'date', header: 'Date', width: '115px', sortable: true, cell: (e) => <span className="num text-[13px] text-ink-soft">{String(e.date).slice(0, 10)}</span> },
+    { key: 'category', header: 'Category', width: '140px', cell: (e) => <span className="font-medium">{e.category}</span> },
+    { key: 'vendor', header: 'Vendor', width: '150px', cell: (e) => <span title={e.vendor}>{e.vendor || '–'}</span> },
+    { key: 'method', header: 'Paid by', width: '95px', cell: (e) => e.method },
+    { key: 'note', header: t('Notes'), cell: (e) => <span className="text-[13px] text-ink-soft" title={e.note}>{e.note || '–'}</span> },
+    { key: 'by', header: 'Added by', width: '120px', cell: (e) => <span className="text-[13px] text-ink-soft">{e.createdByName}</span> },
+    { key: 'amount', header: 'Amount', width: '115px', align: 'right', sortable: true, cell: (e) => <span className="num text-[15px] font-semibold">{inr(e.amountPaise, { short: true })}</span> },
+    { key: 'actions', header: '', width: '112px', align: 'right', cell: (e) => rowActions(e) },
+  ];
+  const mobileRow = (e: any) => (
+    <span className="flex items-center gap-3 p-4">
+      <span className="min-w-0 flex-1"><span className="block font-medium">{e.category}{e.vendor ? ` · ${e.vendor}` : ''}</span><span className="block text-sm text-ink-soft">{String(e.date).slice(0, 10)} · {e.method} · {e.createdByName}{e.note ? ` · ${e.note}` : ''}</span></span>
+      <span className="num text-xl font-bold">{inr(e.amountPaise, { short: true })}</span>
+      {rowActions(e)}
+    </span>
+  );
   const [f, setF] = useState({ category: 'Ingredients', amount: '', date: new Date().toISOString().slice(0, 10), method: 'CASH', vendor: '', note: '' });
   const add = useMutation({
-    mutationFn: () => api('/finance/expenses', { body: { category: f.category, amountPaise: toPaise(f.amount), date: f.date, method: f.method, vendor: f.vendor || undefined, note: f.note || undefined } }),
-    onSuccess: () => { setOpen(false); setF({ ...f, amount: '', vendor: '', note: '' }); qc.invalidateQueries({ queryKey: ['expenses'] }); toast.ok('Saved'); }, onError: (e) => toast.error(errText(e)),
+    mutationFn: () => {
+      const body = { category: f.category, amountPaise: toPaise(f.amount), date: f.date, method: f.method, vendor: f.vendor || (editId ? '' : undefined), note: f.note || (editId ? '' : undefined) };
+      return editId ? api(`/finance/expenses/${editId}`, { method: 'PUT', body }) : api('/finance/expenses', { body });
+    },
+    onSuccess: () => { setOpen(false); setEditId(null); setF({ ...f, amount: '', vendor: '', note: '' }); qc.invalidateQueries({ queryKey: ['expenses'] }); toast.ok('Saved'); }, onError: (e) => toast.error(errText(e)),
   });
   const rm = useMutation({ mutationFn: (id: string) => api(`/finance/expenses/${id}`, { method: 'DELETE' }), onSuccess: () => { setDel(null); qc.invalidateQueries({ queryKey: ['expenses'] }); }, onError: (e) => toast.error(errText(e)) });
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <Segmented value={range} onChange={setRange} options={[{ value: 'today', label: t('Today') }, { value: '7d', label: t('Last 7 days') }, { value: '30d', label: t('Last 30 days') }]} />
-        <div className="flex items-center gap-4"><p className="text-ink-soft">Total <b className="num text-xl text-ink">{inr(q.data?.totalPaise ?? 0, { short: true })}</b></p><Button onClick={() => setOpen(true)}><Plus size={20} />Add expense</Button></div>
+        <div className="flex items-center gap-4"><p className="text-ink-soft">Total <b className="num text-xl text-ink">{inr(q.data?.totalPaise ?? 0, { short: true })}</b></p><Button onClick={() => { setEditId(null); setF({ category: 'Ingredients', amount: '', date: new Date().toISOString().slice(0, 10), method: 'CASH', vendor: '', note: '' }); setOpen(true); }}><Plus size={20} />Add expense</Button></div>
       </div>
       {q.isLoading ? <Skeleton className="h-48" /> : q.error ? <ErrorNote error={q.error} /> : !q.data?.expenses.length ? <Empty title="No expenses in this period" hint="Record gas, salary, rent and other spending so the owner sees the real picture." />
-      : <ul className="grid gap-2">{q.data.expenses.map((e) => <li key={e._id} className="flex items-center gap-3 rounded-[10px] border border-line bg-card p-4"><div className="min-w-0 flex-1"><p className="font-medium">{e.category}{e.vendor ? ` · ${e.vendor}` : ''}</p><p className="text-sm text-ink-soft">{e.date.slice(0, 10)} · {e.method} · {e.createdByName}{e.note ? ` · ${e.note}` : ''}</p></div><p className="num text-xl font-bold">{inr(e.amountPaise, { short: true })}</p><Button size="sm" variant="ghost" onClick={() => setDel(e)}>{t('Delete')}</Button></li>)}</ul>}
-      <Modal open={open} onClose={() => setOpen(false)} title="Add expense">
+      : (
+        <>
+          <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-line bg-card p-4">
+            <SearchBox label={t('Search')} placeholder="Category, vendor, note" value={search} onChange={(v) => { setSearch(v); paged.resetPage(); }} className="grow basis-64" />
+            <FilterSelect label="Category" value={cat} onChange={(v) => { setCat(v); paged.resetPage(); }} options={[{ value: 'ALL', label: t('All') }, ...CATS.map((c) => ({ value: c, label: c }))]} />
+            <FilterSelect label="Paid by" value={method} onChange={(v) => { setMethod(v); paged.resetPage(); }} options={[{ value: 'ALL', label: t('All') }, ...['CASH', 'UPI', 'BANK', 'OTHER'].map((m) => ({ value: m, label: m }))]} />
+            {dirty && <Button variant="ghost" onClick={reset}>{t('Reset filters')}</Button>}
+            {dirty && <p className="ml-auto pb-2 text-sm text-ink-soft">{rows.length} · <b className="num text-ink">{inr(rows.reduce((a, e) => a + e.amountPaise, 0), { short: true })}</b></p>}
+          </div>
+          <DataTable
+            columns={columns} rows={paged.slice} rowKey={(e) => e._id} sort={sort} onSort={(s) => { setSort(s); paged.resetPage(); }} mobileRow={mobileRow} minWidth={980}
+            empty={<div><Empty title="No expenses match these filters" /><div className="mt-3 text-center"><Button variant="soft" onClick={reset}>{t('Reset filters')}</Button></div></div>}
+            footer={<Pagination page={paged.page} pageSize={paged.pageSize} total={paged.total} onPage={paged.setPage} onPageSize={paged.setPageSize} />}
+          />
+        </>
+      )}
+      <Modal open={open} onClose={() => { setOpen(false); setEditId(null); }} title={editId ? 'Edit expense' : 'Add expense'}>
         <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap gap-2">{CATS.map((c) => <button key={c} onClick={() => setF({ ...f, category: c })} aria-pressed={f.category === c} className={`press min-h-11 rounded-lg px-4 text-sm font-medium ring-1 ${f.category === c ? 'bg-forest text-white ring-forest' : 'ring-line'}`}>{c}</button>)}</div>
+          <div className="flex flex-wrap gap-2">{(CATS.includes(f.category) ? CATS : [...CATS, f.category]).map((c) => <button key={c} onClick={() => setF({ ...f, category: c })} aria-pressed={f.category === c} className={`press min-h-11 rounded-lg px-4 text-sm font-medium ring-1 ${f.category === c ? 'bg-forest text-white ring-forest' : 'ring-line'}`}>{c}</button>)}</div>
           <Field label="Amount (₹)"><input className={`${inputCls} num text-2xl`} inputMode="decimal" autoFocus value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} /></Field>
           <div className="grid grid-cols-2 gap-3"><Field label="Date"><input type="date" className={inputCls} value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></Field><Field label="Paid by"><select className={inputCls} value={f.method} onChange={(e) => setF({ ...f, method: e.target.value })}>{['CASH', 'UPI', 'BANK', 'OTHER'].map((m) => <option key={m}>{m}</option>)}</select></Field></div>
           <input className={inputCls} placeholder="Vendor (optional)" value={f.vendor} onChange={(e) => setF({ ...f, vendor: e.target.value })} />

@@ -30,16 +30,45 @@ function present(o: any) {
 
 ordersRouter.get('/', requirePerm('orders.create', 'kitchen.view', 'reports.view'), asyncHandler(async (req, res) => {
   const s = await getSettings();
-  const q = z.object({ view: z.enum(['active', 'today', 'history']).default('active'), date: z.string().optional(), q: z.string().optional() }).parse(req.query);
+  const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+  const q = parse(z.object({
+    view: z.enum(['active', 'today', 'history']).default('active'),
+    date: day.optional(), from: day.optional(), to: day.optional(), // history range (date = older single-day form)
+    q: z.string().max(60).optional(),
+    type: z.enum(['DINE_IN', 'TAKEAWAY', 'PARCEL']).optional(),
+    status: z.enum(['DRAFT', 'CONFIRMED', 'PREPARING', 'READY', 'COMPLETED', 'CANCELLED']).optional(),
+    payment: z.enum(['UNPAID', 'PARTIALLY_PAID', 'PAID', 'FAILED', 'REFUNDED']).optional(),
+    sort: z.enum(['createdAt', 'totalPaise', 'billNo']).default('createdAt'),
+    dir: z.enum(['asc', 'desc']).default('desc'),
+    page: z.coerce.number().int().min(1).default(1),
+    pageSize: z.coerce.number().int().min(5).max(100).optional(),
+  }), req.query);
+  const ACTIVE = ['DRAFT', 'CONFIRMED', 'PREPARING', 'READY'];
   const filter: any = {};
-  if (q.view === 'active') filter.status = { $in: ['DRAFT', 'CONFIRMED', 'PREPARING', 'READY'] };
+  if (q.view === 'active') filter.status = { $in: q.status ? ACTIVE.filter((x) => x === q.status) : ACTIVE };
   else {
-    const day = q.view === 'today' ? localDateString(new Date(), s.timezone) : (q.date ?? localDateString(new Date(), s.timezone));
-    filter.createdAt = { $gte: startOfLocalDay(day, s.timezone), $lt: startOfLocalDay(addDays(day, 1), s.timezone) };
+    const today = localDateString(new Date(), s.timezone);
+    let from = q.view === 'today' ? today : (q.from ?? q.date ?? today);
+    let to = q.view === 'today' ? today : (q.to ?? q.date ?? from);
+    if (from > to) [from, to] = [to, from];
+    filter.createdAt = { $gte: startOfLocalDay(from, s.timezone), $lt: startOfLocalDay(addDays(to, 1), s.timezone) };
+    if (q.status) filter.status = q.status;
   }
-  if (q.q) filter.billNo = new RegExp(q.q.replace(/[^\w-]/g, ''), 'i');
-  const orders = await Order.find(filter).sort({ createdAt: -1 }).limit(200);
-  res.json({ orders: orders.map(present) });
+  if (q.type) filter.type = q.type;
+  if (q.payment) filter.paymentStatus = q.payment;
+  const term = q.q?.trim();
+  if (term) { // bill number, customer, phone, table or an item name
+    const rx = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    filter.$or = [{ billNo: rx }, { customerName: rx }, { customerPhone: rx }, { tableLabel: rx }, { 'items.name': rx }];
+  }
+  // no page/pageSize in the request = the older call: first 200 rows in one go
+  const legacy = req.query.page === undefined && req.query.pageSize === undefined;
+  const pageSize = q.pageSize ?? (legacy ? 200 : 25);
+  const total = await Order.countDocuments(filter);
+  const pages = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(q.page, pages);
+  const orders = await Order.find(filter).sort({ [q.sort]: q.dir === 'asc' ? 1 : -1, _id: -1 }).skip((page - 1) * pageSize).limit(pageSize);
+  res.json({ orders: orders.map(present), total, page, pageSize, pages });
 }));
 
 ordersRouter.get('/:id', requirePerm('orders.create', 'kitchen.view', 'reports.view'), asyncHandler(async (req, res) => {

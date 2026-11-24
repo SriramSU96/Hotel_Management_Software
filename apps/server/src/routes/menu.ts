@@ -45,7 +45,7 @@ menuRouter.put('/categories/:id', requirePerm('menu.edit'), asyncHandler(async (
 
 menuRouter.get('/products', requireLogin, asyncHandler(async (req, res) => {
   const all = req.query.all === '1' && req.user!.permissions.includes('menu.edit');
-  const products = await Product.find(all ? {} : { active: true }).sort({ sortOrder: 1, name: 1 });
+  const products = await Product.find(all ? { deleted: { $ne: true } } : { active: true, deleted: { $ne: true } }).sort({ sortOrder: 1, name: 1 });
   res.json({ products });
 }));
 
@@ -73,6 +73,15 @@ menuRouter.put('/products/:id', requirePerm('menu.edit'), asyncHandler(async (re
   await audit(req, 'product.update', 'Product', p._id, { after: b });
   emit('menu:changed');
   res.json({ product: p });
+}));
+
+// Delete = soft delete. Old bills keep their own copy of the name and price, so history stays correct.
+menuRouter.delete('/products/:id', requirePerm('menu.edit'), asyncHandler(async (req, res) => {
+  const p = await Product.findByIdAndUpdate(req.params.id, { deleted: true, active: false, starred: false }, { new: true });
+  if (!p) throw new HttpError(404, 'Product not found.');
+  await audit(req, 'product.delete', 'Product', p._id, { note: p.name });
+  emit('menu:changed');
+  res.json({ ok: true });
 }));
 
 menuRouter.put('/products/:id/price', requirePerm('price.edit'), asyncHandler(async (req, res) => {

@@ -1,13 +1,14 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ImageSquare, Plus, Star } from '@phosphor-icons/react';
+import { ImageSquare, PencilSimple, Plus, Star, Trash } from '@phosphor-icons/react';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { fmtDateTime, inr, toPaise } from '../lib/format';
 import { priceFor, useCategories, useProducts, type Product } from '../lib/queries';
 import { useT } from '../lib/i18n';
-import { Badge, Button, Empty, ErrorNote, Field, Modal, PageHead, Segmented, Skeleton, inputCls } from '../components/ui';
+import { Badge, Button, ConfirmDialog, Empty, ErrorNote, Field, IconButton, Modal, PageHead, Segmented, Skeleton, inputCls } from '../components/ui';
 import { Photo } from '../components/ProductTile';
+import { DataTable, FilterSelect, Pagination, SearchBox, usePaged, type Column, type Sort } from '../components/DataTable';
 import { errText, toast } from '../lib/toast';
 
 export default function MenuAdmin() {
@@ -25,20 +26,86 @@ export default function MenuAdmin() {
       <div className="mb-4"><Segmented value={tab} onChange={setTab} options={[{ value: 'products', label: 'Products' }, { value: 'prices', label: 'Price list & quick order', icon: <Star size={16} weight="fill" /> }]} /></div>
       {tab === 'prices' ? <PriceList /> : products.isLoading ? <Skeleton className="h-64" /> : products.error ? <ErrorNote error={products.error} />
       : !products.data?.length ? <Empty title="No products yet" hint="Add your first dish with a photo and price." icon={<ImageSquare size={40} />} />
-      : (
-        <div className="grid gap-3 min-[768px]:grid-cols-2 min-[1280px]:grid-cols-3">
-          {products.data.map((p) => (
-            <button key={p._id} onClick={() => setEdit(p)} className={`press flex items-center gap-4 rounded-[10px] border border-line bg-card p-3 text-left shadow-soft hover:border-forest/40 ${p.active ? '' : 'opacity-50'}`}>
-              <Photo p={p} className="h-20 w-20 shrink-0 rounded-lg" />
-              <div className="min-w-0 flex-1"><p className="truncate font-medium">{p.name}</p><p className="text-xs text-ink-soft">{catName(p.categoryId)}</p><p className="num mt-1 flex flex-wrap items-baseline gap-x-3 text-sm"><span><b className="font-bold text-forest">{inr(p.pricePaise, { short: true })}</b> <span className="text-xs text-ink-soft">Eat here</span></span><span><b className="font-bold text-forest">{inr(priceFor(p, 'PARCEL'), { short: true })}</b> <span className="text-xs text-ink-soft">Parcel</span></span></p></div>
-              {p.starred && <Star size={18} weight="fill" className="shrink-0 text-gold" aria-label="Quick order" />}<Badge tone={p.status === 'AVAILABLE' ? 'ok' : 'warn'}>{p.status === 'AVAILABLE' ? t('Available') : p.status === 'SOLD_OUT' ? t('Sold out') : t('Unavailable')}</Badge>
-            </button>
-          ))}
-        </div>
-      )}
+      : <ProductTable products={products.data} cats={cats.data ?? []} onEdit={setEdit} />}
       {edit && <ProductForm initial={edit} onClose={() => setEdit(null)} />}
       {catOpen && <Categories onClose={() => setCatOpen(false)} />}
     </div>
+  );
+}
+
+const priceText = (p: Product, type: 'TAKEAWAY' | 'PARCEL') => {
+  const own = type === 'TAKEAWAY' ? p.takeawayPricePaise : p.parcelPricePaise;
+  return typeof own === 'number' ? <b className="font-semibold text-forest">{inr(own, { short: true })}</b> : <span className="text-ink-soft">{inr(p.pricePaise, { short: true })}</span>;
+};
+const statusBadge = (p: Product, t: (s: string) => string) => (!p.active ? <Badge tone="info">Hidden</Badge> : <Badge tone={p.status === 'AVAILABLE' ? 'ok' : 'warn'}>{p.status === 'AVAILABLE' ? t('Available') : p.status === 'SOLD_OUT' ? t('Sold out') : t('Unavailable')}</Badge>);
+
+function ProductTable({ products, cats, onEdit }: { products: Product[]; cats: { _id: string; name: string }[]; onEdit: (p: Product) => void }) {
+  const t = useT();
+  const [search, setSearch] = useState('');
+  const [cat, setCat] = useState('ALL');
+  const [status, setStatus] = useState('ALL');
+  const [sort, setSort] = useState<Sort>({ key: 'name', dir: 'asc' });
+  const qc = useQueryClient();
+  const [del, setDel] = useState<Product | null>(null);
+  const rm = useMutation({
+    mutationFn: (id: string) => api(`/products/${id}`, { method: 'DELETE' }),
+    onSuccess: () => { setDel(null); qc.invalidateQueries({ queryKey: ['products'] }); toast.ok('Deleted'); }, onError: (e) => toast.error(errText(e)),
+  });
+  const catName = (id: string) => cats.find((c) => c._id === id)?.name ?? '';
+  const rows = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    const d = sort.dir === 'asc' ? 1 : -1;
+    return products
+      .filter((p) => (cat === 'ALL' || p.categoryId === cat) && (status === 'ALL' || (status === 'HIDDEN' ? !p.active : p.active && p.status === status)) && (!term || p.name.toLowerCase().includes(term) || (p.nameTa ?? '').includes(term)))
+      .sort((a, b) => (sort.key === 'price' ? a.pricePaise - b.pricePaise : sort.key === 'category' ? catName(a.categoryId).localeCompare(catName(b.categoryId)) : a.name.localeCompare(b.name)) * d);
+  }, [products, cats, search, cat, status, sort]); // eslint-disable-line react-hooks/exhaustive-deps
+  const paged = usePaged(rows, 10);
+  const dirty = !!search || cat !== 'ALL' || status !== 'ALL';
+  const reset = () => { setSearch(''); setCat('ALL'); setStatus('ALL'); paged.resetPage(); };
+
+  const columns: Column<Product>[] = [
+    { key: 'name', header: 'Product', sortable: true, firstDir: 'asc', cell: (p) => (
+      <div className={`flex min-w-0 items-center gap-3 ${p.active ? '' : 'opacity-50'}`}>
+        <Photo p={p} className="h-10 w-10 shrink-0 rounded-md" />
+        <div className="min-w-0"><p className="truncate font-medium">{p.name}</p>{p.nameTa && <p className="truncate font-ta text-xs text-ink-soft">{p.nameTa}</p>}</div>
+      </div>) },
+    { key: 'category', header: 'Category', width: '150px', sortable: true, firstDir: 'asc', cell: (p) => <span className="text-ink-soft">{catName(p.categoryId)}</span> },
+    { key: 'price', header: 'Eat here', width: '105px', align: 'right', sortable: true, cell: (p) => <b className="num font-semibold text-forest">{inr(p.pricePaise, { short: true })}</b> },
+    { key: 'takeaway', header: 'Takeaway', width: '105px', align: 'right', cell: (p) => <span className="num">{priceText(p, 'TAKEAWAY')}</span> },
+    { key: 'parcel', header: 'Parcel', width: '105px', align: 'right', cell: (p) => <span className="num">{priceText(p, 'PARCEL')}</span> },
+    { key: 'status', header: t('Status'), width: '140px', cell: (p) => statusBadge(p, t) },
+    { key: 'quick', header: 'Quick', width: '75px', align: 'right', cell: (p) => (p.starred ? <Star size={18} weight="fill" className="inline text-gold" aria-label="Quick order" /> : <span className="text-ink-soft">–</span>) },
+    { key: 'actions', header: '', width: '112px', align: 'right', cell: (p) => (
+      <span className="inline-flex items-center justify-end gap-1.5">
+        <IconButton label={t('Edit')} onClick={(e) => { e.stopPropagation(); onEdit(p); }}><PencilSimple size={16} /></IconButton>
+        <IconButton label={t('Delete')} tone="danger" onClick={(e) => { e.stopPropagation(); setDel(p); }}><Trash size={16} /></IconButton>
+      </span>) },
+  ];
+  const mobileRow = (p: Product) => (
+    <span className={`flex items-center gap-4 p-3 ${p.active ? '' : 'opacity-50'}`}>
+      <Photo p={p} className="h-16 w-16 shrink-0 rounded-lg" />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-medium">{p.name}</span><span className="block text-xs text-ink-soft">{catName(p.categoryId)}</span>
+        <span className="num mt-1 flex flex-wrap items-baseline gap-x-3 text-sm"><span><b className="font-bold text-forest">{inr(p.pricePaise, { short: true })}</b> <span className="text-xs text-ink-soft">Eat here</span></span><span><b className="font-bold text-forest">{inr(priceFor(p, 'PARCEL'), { short: true })}</b> <span className="text-xs text-ink-soft">Parcel</span></span></span>
+      </span>
+      {p.starred && <Star size={18} weight="fill" className="shrink-0 text-gold" aria-label="Quick order" />}{statusBadge(p, t)}
+    </span>
+  );
+  return (
+    <>
+      <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-line bg-card p-4">
+        <SearchBox label={t('Search')} placeholder="Search food" value={search} onChange={(v) => { setSearch(v); paged.resetPage(); }} className="grow basis-64" />
+        <FilterSelect label="Category" value={cat} onChange={(v) => { setCat(v); paged.resetPage(); }} options={[{ value: 'ALL', label: t('All') }, ...cats.map((c) => ({ value: c._id, label: c.name }))]} />
+        <FilterSelect label={t('Status')} value={status} onChange={(v) => { setStatus(v); paged.resetPage(); }} options={[{ value: 'ALL', label: t('All') }, { value: 'AVAILABLE', label: t('Available') }, { value: 'SOLD_OUT', label: t('Sold out') }, { value: 'UNAVAILABLE', label: t('Unavailable') }, { value: 'HIDDEN', label: 'Hidden from menu' }]} />
+        {dirty && <Button variant="ghost" onClick={reset}>{t('Reset filters')}</Button>}
+      </div>
+      <DataTable
+        columns={columns} rows={paged.slice} rowKey={(p) => p._id} onRowClick={onEdit} sort={sort} onSort={(s) => { setSort(s); paged.resetPage(); }} mobileRow={mobileRow} minWidth={900}
+        empty={<div><Empty title="No products match these filters" icon={<ImageSquare size={36} />} /><div className="mt-3 text-center"><Button variant="soft" onClick={reset}>{t('Reset filters')}</Button></div></div>}
+        footer={<Pagination page={paged.page} pageSize={paged.pageSize} total={paged.total} onPage={paged.setPage} onPageSize={paged.setPageSize} />}
+      />
+      <ConfirmDialog open={!!del} onClose={() => setDel(null)} title="Delete this product?" danger confirmLabel={t('Delete')} busy={rm.isPending} onConfirm={() => del && rm.mutate(del._id)} body={<p><b>{del?.name}</b> will be removed from the menu and New Order. Past bills keep it.</p>} />
+    </>
   );
 }
 
@@ -51,6 +118,7 @@ function ProductForm({ initial, onClose }: { initial: Partial<Product>; onClose:
   const [f, setF] = useState({ name: initial.name ?? '', nameTa: initial.nameTa ?? '', categoryId: initial.categoryId ?? '', price: initial.pricePaise != null ? String(initial.pricePaise / 100) : '', parcel: initial.parcelPricePaise != null ? String(initial.parcelPricePaise / 100) : '', status: initial.status ?? 'AVAILABLE', description: initial.description ?? '', reason: '' });
   const [file, setFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [confirmDel, setConfirmDel] = useState(false);
   const hist = useQuery({ queryKey: ['price-history', initial._id], enabled: !isNew && can('price.edit'), queryFn: () => api<{ history: any[] }>(`/products/${initial._id}/price-history`) });
 
   const save = useMutation({
@@ -73,6 +141,10 @@ function ProductForm({ initial, onClose }: { initial: Partial<Product>; onClose:
   const hide = useMutation({
     mutationFn: () => api(`/products/${initial._id}`, { method: 'PUT', body: { active: initial.active === false } }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['products'] }); onClose(); }, onError: (e) => toast.error(errText(e)),
+  });
+  const remove = useMutation({
+    mutationFn: () => api(`/products/${initial._id}`, { method: 'DELETE' }),
+    onSuccess: () => { toast.ok('Deleted'); qc.invalidateQueries({ queryKey: ['products'] }); onClose(); }, onError: (e) => toast.error(errText(e)),
   });
   const priceChanged = !isNew && (toPaise(f.price || 0) !== initial.pricePaise || (f.parcel.trim() ? toPaise(f.parcel) : null) !== (initial.parcelPricePaise ?? null));
   const preview = file ? URL.createObjectURL(file) : initial.imageUrl;
@@ -104,7 +176,9 @@ function ProductForm({ initial, onClose }: { initial: Partial<Product>; onClose:
           <Field label="Description (optional)"><input className={inputCls} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} maxLength={300} /></Field>
           {hist.data?.history.length ? <details className="rounded-lg bg-black/5 p-3 text-sm"><summary className="cursor-pointer font-medium">Price history</summary>{hist.data.history.map((h) => <p key={h._id} className="mt-1 text-ink-soft"><span className="num">{h.oldPaise != null ? inr(h.oldPaise, { short: true }) : '—'} → {inr(h.newPaise, { short: true })}</span> · {h.byName} · {fmtDateTime(h.createdAt)}{h.reason ? ` · ${h.reason}` : ''}</p>)}</details> : null}
           <ErrorNote error={save.error} />
+          <ConfirmDialog open={confirmDel} onClose={() => setConfirmDel(false)} title="Delete this product?" danger confirmLabel={t('Delete')} busy={remove.isPending} onConfirm={() => remove.mutate()} body={<p><b>{initial.name}</b> will be removed from the menu and New Order. Past bills keep it.</p>} />
           <div className="flex gap-3">
+            {!isNew && <IconButton label={t('Delete')} tone="danger" className="h-auto min-h-12 w-12" onClick={() => setConfirmDel(true)}><Trash size={20} /></IconButton>}
             {!isNew && <Button variant="ghost" onClick={() => hide.mutate()} disabled={hide.isPending}>{initial.active === false ? 'Show in menu' : 'Hide from menu'}</Button>}
             <Button size="lg" className="flex-1" disabled={save.isPending || !f.name.trim() || !f.categoryId || (isNew && !f.price)} onClick={() => save.mutate()}>{t('Save')}</Button>
           </div>
@@ -144,6 +218,9 @@ function PriceList() {
   const canPrice = can('price.edit');
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [q, setQ] = useState('');
+  const t = useT();
+  const [catF, setCatF] = useState('ALL');
+  const [show, setShow] = useState('ALL');
   const get = (p: Product) => drafts[p._id] ?? toDraft(p);
   const set = (p: Product, k: keyof Draft, v: string) => setDrafts((d) => ({ ...d, [p._id]: { ...get(p), [k]: v.replace(/[^0-9.]/g, '') } }));
   const changed = (products.data ?? []).filter((p) => { const d = drafts[p._id]; if (!d) return false; const o = toDraft(p); return d.dine !== o.dine || d.take !== o.take || d.parcel !== o.parcel; });
@@ -162,8 +239,8 @@ function PriceList() {
   if (products.isLoading) return <Skeleton className="h-64" />;
   if (products.error) return <ErrorNote error={products.error} />;
   const term = q.trim().toLowerCase();
-  const rows = (products.data ?? []).filter((p) => !term || p.name.toLowerCase().includes(term));
-  const groups = (cats.data ?? []).map((c) => ({ c, items: rows.filter((p) => p.categoryId === c._id) })).filter((g) => g.items.length);
+  const rows = (products.data ?? []).filter((p) => (!term || p.name.toLowerCase().includes(term) || (p.nameTa ?? '').includes(term)) && (show === 'ALL' || (show === 'STAR' ? !!p.starred : changed.includes(p))));
+  const groups = (cats.data ?? []).filter((c) => catF === 'ALL' || c._id === catF).map((c) => ({ c, items: rows.filter((p) => p.categoryId === c._id) })).filter((g) => g.items.length);
   const priceInput = (p: Product, k: keyof Draft, label: string, ph: string) => (
     <input aria-label={`${p.name} ${label} price`} className={`${inputCls} num w-full min-w-0 text-right`} inputMode="decimal" placeholder={ph} disabled={!canPrice} value={get(p)[k]} onChange={(e) => set(p, k, e.target.value)} />
   );
@@ -172,7 +249,12 @@ function PriceList() {
       <div className="mb-4 rounded-[10px] border border-line bg-card p-4 text-sm text-ink-soft">
         <p><b className="text-ink">Prices in ₹.</b> Leave <b>Takeaway</b> or <b>Parcel</b> empty to use the Eat here price. Tap the <Star size={14} weight="fill" className="inline text-gold" /> to show an item in <b>Quick order</b> at the top of the billing screen.{!canPrice && ' Only the owner or manager can change prices.'}</p>
       </div>
-      <input className={`${inputCls} mb-4`} placeholder="Search food" aria-label="Search food" value={q} onChange={(e) => setQ(e.target.value)} />
+      <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-line bg-card p-4">
+        <SearchBox label={t('Search')} placeholder="Search food" value={q} onChange={setQ} className="grow basis-64" />
+        <FilterSelect label="Category" value={catF} onChange={setCatF} options={[{ value: 'ALL', label: t('All') }, ...(cats.data ?? []).map((c) => ({ value: c._id, label: c.name }))]} />
+        <FilterSelect label="Show" value={show} onChange={setShow} options={[{ value: 'ALL', label: t('All') }, { value: 'STAR', label: 'Quick order only' }, { value: 'CHANGED', label: 'Unsaved changes' }]} />
+      </div>
+      {groups.length === 0 && <p className="py-10 text-center text-ink-soft">No food matches.</p>}
       {groups.map(({ c, items }) => (
         <section key={c._id} className="mb-6">
           <h3 className="eyebrow mb-2">{c.name}</h3>
@@ -196,7 +278,7 @@ function PriceList() {
         </section>
       ))}
       {changed.length > 0 && (
-        <div className="fixed inset-x-0 bottom-[72px] z-20 border-t border-line bg-card/95 p-3 shadow-2xl min-[640px]:bottom-0 min-[640px]:left-[72px] min-[1100px]:left-[220px] min-[1280px]:left-[248px]">
+        <div className="fixed inset-x-0 bottom-[72px] z-20 border-t border-line bg-card/95 p-3 shadow-2xl min-[640px]:bottom-0 min-[640px]:left-[72px] min-[1100px]:left-[200px] min-[1280px]:left-[216px]">
           <div className="mx-auto flex max-w-3xl items-center gap-3">
             <p className="flex-1 text-sm font-medium">{changed.length} change{changed.length === 1 ? '' : 's'} not saved</p>
             <Button variant="ghost" onClick={() => setDrafts({})} disabled={saveAll.isPending}>Cancel</Button>

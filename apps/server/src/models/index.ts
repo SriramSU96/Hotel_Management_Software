@@ -66,6 +66,7 @@ const productSchema = new Schema({
   sortOrder: { type: Number, default: 0 },
   active: { type: Boolean, default: true },
 }, opts);
+productSchema.add({ deleted: { type: Boolean, default: false, index: true } });
 productSchema.index({ name: 'text', nameTa: 'text' });
 productSchema.add({ demo: DEMO });
 export const Product = model('Product', productSchema);
