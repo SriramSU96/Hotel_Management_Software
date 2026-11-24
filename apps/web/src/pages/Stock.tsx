@@ -6,6 +6,7 @@ import { useAuth } from '../lib/auth';
 import { fmtDateTime, inr, toPaise } from '../lib/format';
 import { useLang, useT } from '../lib/i18n';
 import { Badge, Button, Empty, ErrorNote, Field, Modal, PageHead, Segmented, Skeleton, inputCls } from '../components/ui';
+import { DataTable, FilterSelect, Pagination, SearchBox, usePaged, type Column, type Sort } from '../components/DataTable';
 import { errText, toast } from '../lib/toast';
 
 const UNIT_GROUPS: Record<string, string[]> = { pcs: ['pcs'], kg: ['kg', 'g'], g: ['kg', 'g'], L: ['L', 'ml'], ml: ['L', 'ml'], packet: ['packet'], box: ['box'] };
@@ -38,6 +39,7 @@ export default function Stock() {
       .filter((i) => (filter === 'all' || (filter === 'low' ? levelOf(i) !== 'ok' : levelOf(i) === 'ok')) && (!term || i.name.toLowerCase().includes(term) || (i.nameTa ?? '').includes(term)))
       .sort((a, b) => Number(levelOf(b) !== 'ok') - Number(levelOf(a) !== 'ok'));
   }, [all, q, filter]);
+  const paged = usePaged(shown, 10);
 
   const chips: [Filter, string, number][] = [['all', 'All', all.length], ['low', t('Low stock'), low + out], ['ok', 'In stock', healthy]];
 
@@ -68,11 +70,11 @@ export default function Stock() {
               <div className="flex flex-wrap items-center gap-3 border-b border-line p-4">
                 <div className="relative min-w-[200px] flex-1 min-[900px]:max-w-sm">
                   <MagnifyingGlass size={20} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-soft" />
-                  <input className={`${inputCls} pl-11`} placeholder="Search stock" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search stock" />
+                  <input className={`${inputCls} pl-11`} placeholder="Search stock" value={q} onChange={(e) => { setQ(e.target.value); paged.resetPage(); }} aria-label="Search stock" />
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {chips.map(([v, label, n]) => (
-                    <button key={v} onClick={() => setFilter(v)} aria-pressed={filter === v} className={`press inline-flex min-h-11 items-center gap-2 rounded-lg px-4 text-[14px] font-medium ${filter === v ? 'bg-ink text-white' : 'bg-black/[0.045] text-ink hover:bg-black/[0.075]'}`}>{label}<span className={`num text-[12px] ${filter === v ? 'text-white/70' : 'text-ink-soft'}`}>{n}</span></button>
+                    <button key={v} onClick={() => { setFilter(v); paged.resetPage(); }} aria-pressed={filter === v} className={`press inline-flex min-h-11 items-center gap-2 rounded-lg px-4 text-[14px] font-medium ${filter === v ? 'bg-ink text-white' : 'bg-black/[0.045] text-ink hover:bg-black/[0.075]'}`}>{label}<span className={`num text-[12px] ${filter === v ? 'text-white/70' : 'text-ink-soft'}`}>{n}</span></button>
                   ))}
                 </div>
               </div>
@@ -83,7 +85,7 @@ export default function Stock() {
 
               {shown.length === 0 ? <p className="px-5 py-12 text-center text-ink-soft">No stock items match.</p> : (
                 <ul className="divide-y divide-line">
-                  {shown.map((i) => {
+                  {paged.slice.map((i) => {
                     const lv = levelOf(i);
                     const target = i.reorderLevel > 0 ? i.reorderLevel * 2 : 0;
                     const pct = target ? Math.min(100, Math.max(0, (i.qty / target) * 100)) : 0;
@@ -117,6 +119,7 @@ export default function Stock() {
                   })}
                 </ul>
               )}
+{shown.length > 0 && <Pagination page={paged.page} pageSize={paged.pageSize} total={paged.total} onPage={paged.setPage} onPageSize={paged.setPageSize} />}
             </section>
           </div>
         ))}
@@ -199,26 +202,108 @@ function NewItem({ onClose }: { onClose: () => void }) {
   );
 }
 
+const reasonText = (m: any) => (m.wasteReason ? `${m.wasteReason.toLowerCase().replace('_', ' ')}${m.reason ? ` - ${m.reason}` : ''}` : m.reason ?? '');
+
 function Ledger() {
-  const q = useQuery({ queryKey: ['stock-ledger'], queryFn: () => api<{ movements: any[] }>('/stock/movements?limit=150') });
-  if (q.isLoading) return <Skeleton className="h-64" />;
+  const t = useT();
+  const q = useQuery({ queryKey: ['stock-ledger'], queryFn: () => api<{ movements: any[] }>('/stock/movements?limit=300') });
+  const [search, setSearch] = useState('');
+  const [type, setType] = useState('ALL');
+  const [dir, setDir] = useState('ALL');
+  const [sort, setSort] = useState<Sort>({ key: 'createdAt', dir: 'desc' });
+  const rows = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    const d = sort.dir === 'asc' ? 1 : -1;
+    return (q.data?.movements ?? [])
+      .filter((m) => (type === 'ALL' || m.type === type) && (dir === 'ALL' || (dir === 'IN' ? m.deltaBase > 0 : m.deltaBase < 0))
+        && (!term || [m.ingredientId?.name, m.reason, m.wasteReason, m.byName].some((x) => (x ?? '').toLowerCase().includes(term))))
+      .sort((a, b) => (sort.key === 'item' ? String(a.ingredientId?.name ?? '').localeCompare(String(b.ingredientId?.name ?? '')) : new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * d);
+  }, [q.data, search, type, dir, sort]);
+  const paged = usePaged(rows, 25);
+  const dirty = !!search || type !== 'ALL' || dir !== 'ALL';
+  const reset = () => { setSearch(''); setType('ALL'); setDir('ALL'); paged.resetPage(); };
+
+  const columns: Column<any>[] = [
+    { key: 'createdAt', header: 'When', width: '140px', sortable: true, cell: (m) => <span className="num text-[13px] text-ink-soft">{fmtDateTime(m.createdAt)}</span> },
+    { key: 'item', header: 'Item', width: '180px', sortable: true, firstDir: 'asc', cell: (m) => <span className="font-medium">{m.ingredientId?.name}</span> },
+    { key: 'type', header: t('Type'), width: '110px', cell: (m) => m.type },
+    { key: 'change', header: 'Change', width: '130px', cell: (m) => <span className={`num font-bold ${m.deltaBase < 0 ? 'text-bad' : 'text-forest'}`}>{m.deltaBase > 0 ? '+' : ''}{m.deltaBase} {m.ingredientId?.baseUnit}</span> },
+    { key: 'balance', header: 'Balance', width: '100px', cell: (m) => <span className="num">{m.balanceAfter}</span> },
+    { key: 'reason', header: t('Reason'), cell: (m) => <span className="text-ink-soft" title={reasonText(m)}>{reasonText(m) || '–'}</span> },
+    { key: 'by', header: 'By', width: '130px', cell: (m) => <span className="text-ink-soft">{m.byName}</span> },
+  ];
+  const mobileRow = (m: any) => (
+    <span className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 px-4 py-3.5">
+      <span className="font-medium">{m.ingredientId?.name}</span>
+      <span className={`num text-right font-bold ${m.deltaBase < 0 ? 'text-bad' : 'text-forest'}`}>{m.deltaBase > 0 ? '+' : ''}{m.deltaBase} {m.ingredientId?.baseUnit}</span>
+      <span className="col-span-2 text-[13px] text-ink-soft">{m.type} · balance {m.balanceAfter}{reasonText(m) ? ` · ${reasonText(m)}` : ''}</span>
+      <span className="col-span-2 text-[12px] text-ink-soft">{fmtDateTime(m.createdAt)} · {m.byName}</span>
+    </span>
+  );
+
   if (q.error) return <ErrorNote error={q.error} />;
-  if (!q.data?.movements.length) return <Empty title="No stock movements yet" hint="Every change shows here with who, when and why." />;
+  if (!q.isLoading && !q.data?.movements.length) return <Empty title="No stock movements yet" hint="Every change shows here with who, when and why." />;
   return (
-    <div className="overflow-x-auto rounded-[10px] border border-line bg-card">
-      <table className="w-full min-w-[640px] text-left text-sm">
-        <thead className="bg-forest-soft text-forest"><tr>{['When', 'Item', 'Type', 'Change', 'Balance', 'Reason', 'By'].map((h) => <th key={h} className="px-4 py-3 font-bold">{h}</th>)}</tr></thead>
-        <tbody className="divide-y divide-line">
-          {q.data.movements.map((m) => (
-            <tr key={m._id}>
-              <td className="px-4 py-3 text-ink-soft">{fmtDateTime(m.createdAt)}</td><td className="px-4 py-3 font-medium">{m.ingredientId?.name}</td><td className="px-4 py-3">{m.type}</td>
-              <td className={`num px-4 py-3 font-bold ${m.deltaBase < 0 ? 'text-bad' : 'text-forest'}`}>{m.deltaBase > 0 ? '+' : ''}{m.deltaBase} {m.ingredientId?.baseUnit}</td>
-              <td className="num px-4 py-3">{m.balanceAfter}</td><td className="px-4 py-3 text-ink-soft">{m.wasteReason ? `${m.wasteReason.toLowerCase().replace('_', ' ')}${m.reason ? ` - ${m.reason}` : ''}` : m.reason}</td><td className="px-4 py-3 text-ink-soft">{m.byName}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <>
+      <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-line bg-card p-4">
+        <SearchBox label={t('Search')} placeholder="Item, reason, person" value={search} onChange={(v) => { setSearch(v); paged.resetPage(); }} className="grow basis-64" />
+        <FilterSelect label={t('Type')} value={type} onChange={(v) => { setType(v); paged.resetPage(); }} options={[{ value: 'ALL', label: t('All') }, ...['PURCHASE', 'ADJUST', 'COUNT', 'WASTE', 'OPENING'].map((x) => ({ value: x, label: x }))]} />
+        <FilterSelect label="Change" value={dir} onChange={(v) => { setDir(v); paged.resetPage(); }} options={[{ value: 'ALL', label: t('All') }, { value: 'IN', label: 'Added (+)' }, { value: 'OUT', label: 'Removed (−)' }]} />
+        {dirty && <Button variant="ghost" onClick={reset}>{t('Reset filters')}</Button>}
+      </div>
+      <DataTable
+        columns={columns} rows={paged.slice} rowKey={(m) => m._id} sort={sort} onSort={(s) => { setSort(s); paged.resetPage(); }} mobileRow={mobileRow} minWidth={900} loading={q.isLoading}
+        empty={<div><Empty title="No movements match these filters" /><div className="mt-3 text-center"><Button variant="soft" onClick={reset}>{t('Reset filters')}</Button></div></div>}
+        footer={<Pagination page={paged.page} pageSize={paged.pageSize} total={paged.total} onPage={paged.setPage} onPageSize={paged.setPageSize} sizes={[10, 25, 50, 100]} />}
+      />
+    </>
+  );
+}
+
+const purchaseItems = (p: any) => (p.items ?? []).map((i: any) => `${i.name} ${i.qty}${i.unit}`).join(', ');
+
+function PurchaseTable({ purchases }: { purchases: any[] }) {
+  const t = useT();
+  const [search, setSearch] = useState('');
+  const [supplier, setSupplier] = useState('ALL');
+  const [sort, setSort] = useState<Sort>({ key: 'createdAt', dir: 'desc' });
+  const names = useMemo(() => Array.from(new Set(purchases.map((p) => (p.supplierId?.name ?? 'No supplier') as string))).sort(), [purchases]);
+  const rows = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    const d = sort.dir === 'asc' ? 1 : -1;
+    return purchases
+      .filter((p) => (supplier === 'ALL' || (p.supplierId?.name ?? 'No supplier') === supplier) && (!term || `${p.supplierId?.name ?? ''} ${p.invoiceRef ?? ''} ${purchaseItems(p)}`.toLowerCase().includes(term)))
+      .sort((a, b) => (sort.key === 'totalPaise' ? a.totalPaise - b.totalPaise : new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) * d);
+  }, [purchases, search, supplier, sort]);
+  const paged = usePaged(rows, 10);
+  const dirty = !!search || supplier !== 'ALL';
+  const reset = () => { setSearch(''); setSupplier('ALL'); paged.resetPage(); };
+  const columns: Column<any>[] = [
+    { key: 'createdAt', header: 'Date', width: '140px', sortable: true, cell: (p) => <span className="num text-[13px] text-ink-soft">{fmtDateTime(p.createdAt)}</span> },
+    { key: 'supplier', header: 'Supplier', width: '180px', cell: (p) => <span className="font-medium">{p.supplierId?.name ?? 'No supplier'}</span> },
+    { key: 'invoice', header: 'Invoice', width: '130px', cell: (p) => <span className="num">{p.invoiceRef || '–'}</span> },
+    { key: 'items', header: t('Items'), cell: (p) => <span className="text-[13px] text-ink-soft" title={purchaseItems(p)}>{purchaseItems(p)}</span> },
+    { key: 'totalPaise', header: t('Total'), width: '120px', align: 'right', sortable: true, cell: (p) => <span className="num text-[15px] font-semibold">{inr(p.totalPaise)}</span> },
+  ];
+  const mobileRow = (p: any) => (
+    <span className="block p-4">
+      <span className="flex justify-between gap-3"><span className="font-medium">{p.supplierId?.name ?? 'No supplier'}{p.invoiceRef ? ` · ${p.invoiceRef}` : ''}</span><span className="num font-bold">{inr(p.totalPaise)}</span></span>
+      <span className="mt-1 block text-sm text-ink-soft">{fmtDateTime(p.createdAt)} · {purchaseItems(p)}</span>
+    </span>
+  );
+  return (
+    <>
+      <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-line bg-card p-4">
+        <SearchBox label={t('Search')} placeholder="Supplier, invoice, item" value={search} onChange={(v) => { setSearch(v); paged.resetPage(); }} className="grow basis-64" />
+        <FilterSelect label="Supplier" value={supplier} onChange={(v) => { setSupplier(v); paged.resetPage(); }} options={[{ value: 'ALL', label: t('All') }, ...names.map((n) => ({ value: n, label: n }))]} />
+        {dirty && <Button variant="ghost" onClick={reset}>{t('Reset filters')}</Button>}
+      </div>
+      <DataTable
+        columns={columns} rows={paged.slice} rowKey={(p) => p._id} sort={sort} onSort={(s) => { setSort(s); paged.resetPage(); }} mobileRow={mobileRow} minWidth={900}
+        empty={<div><Empty title="No purchases match these filters" /><div className="mt-3 text-center"><Button variant="soft" onClick={reset}>{t('Reset filters')}</Button></div></div>}
+        footer={<Pagination page={paged.page} pageSize={paged.pageSize} total={paged.total} onPage={paged.setPage} onPageSize={paged.setPageSize} />}
+      />
+    </>
   );
 }
 
@@ -240,7 +325,7 @@ function Purchases({ items }: { items: any[] }) {
     <div>
       <div className="mb-4 flex justify-end"><Button onClick={() => setOpen(true)}><Plus size={20} />Receive purchase</Button></div>
       {list.isLoading ? <Skeleton className="h-40" /> : !list.data?.purchases.length ? <Empty title="No purchases yet" hint="Record what you buy from suppliers, with the cost." />
-      : <ul className="grid gap-3">{list.data.purchases.map((p) => <li key={p._id} className="rounded-[10px] border border-line bg-card p-4"><div className="flex justify-between"><p className="font-medium">{p.supplierId?.name ?? 'No supplier'}{p.invoiceRef ? ` · ${p.invoiceRef}` : ''}</p><p className="num font-bold">{inr(p.totalPaise)}</p></div><p className="text-sm text-ink-soft">{fmtDateTime(p.createdAt)} · {p.items.map((i: any) => `${i.name} ${i.qty}${i.unit}`).join(', ')}</p></li>)}</ul>}
+      : <PurchaseTable purchases={list.data.purchases} />}
       <Modal open={open} onClose={() => setOpen(false)} title="Receive purchase" wide>
         <div className="flex flex-col gap-4">
           <div className="grid gap-3 min-[768px]:grid-cols-2">

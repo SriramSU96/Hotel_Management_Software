@@ -65,10 +65,11 @@ const Pct = ({ v }: { v: number }) => <span className={v >= 0 ? 'text-[#7fd1a0]'
 
 /* ---------- small building blocks ---------- */
 
-function Delta({ cur, prev }: { cur: number; prev?: number | null }) {
+function Delta({ cur, prev, against = 'before' }: { cur: number; prev?: number | null; against?: string }) {
+  const when = against === 'before' ? 'before' : `last ${against}`;
   if (prev == null || prev === 0) return <span className="text-[13px] text-ink-soft">No earlier data</span>;
   // nothing sold yet is not a 100% drop: show what the earlier period made instead
-  if (cur === 0) return <span className="num text-[13px] text-ink-soft">Before: {inr(prev, { short: true })}</span>;
+  if (cur === 0) return <span className="num text-[13px] text-ink-soft">{when.charAt(0).toUpperCase() + when.slice(1)}: {inr(prev, { short: true })}</span>;
   const pct = Math.round(((cur - prev) / prev) * 1000) / 10;
   const up = pct >= 0;
   return (
@@ -76,7 +77,7 @@ function Delta({ cur, prev }: { cur: number; prev?: number | null }) {
       <span className={`num inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[12px] font-semibold ${up ? 'bg-[#e6f1ea] text-[#23653f]' : 'bg-[#faeae7] text-[#a23e33]'}`}>
         {up ? <TrendUp size={13} weight="bold" /> : <TrendDown size={13} weight="bold" />}{Math.abs(pct)}%
       </span>
-      <span className="text-[13px] text-ink-soft">vs before</span>
+      <span className="num text-[13px] text-ink-soft">vs {when} ({inr(prev, { short: true })})</span>
     </span>
   );
 }
@@ -99,15 +100,29 @@ function Spark({ values, color }: { values: number[]; color: string }) {
   );
 }
 
-function Kpi({ icon, label, value, sub, spark, valueCls = '', i = 0 }: { icon: React.ReactNode; label: string; value: string; sub: React.ReactNode; spark?: React.ReactNode; valueCls?: string; i?: number }) {
+function Kpi({ icon, label, value, unit, sub, spark, valueCls = '', rows, extra, children, i = 0 }: { icon: React.ReactNode; label: string; value: string; unit?: string; sub: React.ReactNode; spark?: React.ReactNode; valueCls?: string; rows?: { k: string; v: React.ReactNode; bad?: boolean }[]; extra?: React.ReactNode; children?: React.ReactNode; i?: number }) {
   return (
-    <div style={{ ['--i' as string]: i }} className="rise rounded-xl border border-line bg-card p-5 shadow-soft">
+    <div style={{ ['--i' as string]: i }} className="rise flex flex-col rounded-xl border border-line bg-card p-4 shadow-soft">
       <div className="flex items-center gap-2.5 text-[13px] text-ink-soft"><span className="grid h-8 w-8 place-items-center rounded-lg bg-forest-soft text-forest">{icon}</span>{label}</div>
       <div className="mt-3 flex items-end justify-between gap-3">
-        <p className={`num text-[30px] font-semibold leading-none ${valueCls}`}>{value}</p>
+        <p className={`num text-[28px] font-semibold leading-none ${valueCls}`}>{value}{unit && <span className="ml-1.5 text-[14px] font-medium text-ink-soft">{unit}</span>}</p>
         {spark}
       </div>
-      <div className="mt-2.5 min-h-5 text-[13px] text-ink-soft">{sub}</div>
+      <div className="mt-2 min-h-5 text-[13px] text-ink-soft">{sub}</div>
+      {extra}
+      <div className="mt-auto pt-3">
+        {rows && (
+          <dl className="border-t border-line">
+            {rows.map((r) => (
+              <div key={r.k} className="flex items-baseline justify-between gap-3 border-b border-line py-2 text-[13px] last:border-b-0">
+                <dt className="text-ink-soft">{r.k}</dt>
+                <dd className={`num font-medium ${r.bad ? 'text-bad' : ''}`}>{r.v}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+        {children}
+      </div>
     </div>
   );
 }
@@ -179,6 +194,16 @@ export default function Dashboard() {
   const unpaid = c?.pendingPaise ?? 0;
   const billed = (c?.cashPaise ?? 0) + (c?.upiPaise ?? 0) + unpaid;
   const left = c ? c.netPaise - c.expensesPaise : 0;
+  // extra numbers for the four headline cards
+  const yest = daily.length > 1 ? daily[daily.length - 2].salesPaise : 0;
+  const lw = d?.lastWeek;
+  const cmpPrev = lw ? lw.netPaise : p?.netPaise;
+  const cmpLabel = lw ? DAYS[lw.weekday] : 'before';
+  const dine = d?.typeSplit?.DINE_IN?.orders ?? 0;
+  const takeOut = (d?.typeSplit?.TAKEAWAY?.orders ?? 0) + (d?.typeSplit?.PARCEL?.orders ?? 0);
+  const openNow = (d?.live?.cooking ?? 0) + (d?.live?.ready ?? 0);
+  const weekLeft = d?.week ? d.week.netPaise - d.week.expensesPaise : 0;
+  const stockPct = c && c.netPaise > 0 ? Math.round((c.purchasesPaise / c.netPaise) * 100) : null;
 
   // payments donut
   const parts = [
@@ -226,19 +251,26 @@ export default function Dashboard() {
         action={rangeTabs} />
 
       {q.error ? <ErrorNote error={q.error} /> : q.isLoading || !d ? (
-        <div className="grid gap-5"><div className="grid grid-cols-2 gap-4 min-[1100px]:grid-cols-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-32" />)}</div><Skeleton className="h-80" /></div>
+        <div className="grid gap-5"><div className="grid grid-cols-2 gap-4 min-[1100px]:grid-cols-4">{[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-56" />)}</div><Skeleton className="h-80" /></div>
       ) : (
         <div className="grid gap-5">
           {/* the four numbers an owner checks first */}
           <div className="grid grid-cols-2 gap-4 min-[1100px]:grid-cols-4">
             <Kpi i={0} icon={<CurrencyInr size={18} />} label="Net sales" value={inr(c.netPaise, { short: true })}
-              sub={<Delta cur={c.netPaise} prev={p?.netPaise} />} spark={<Spark values={daily.map((x) => x.salesPaise)} color="#17513a" />} />
-            <Kpi i={1} icon={<Receipt size={18} />} label="Orders" value={String(c.orders)}
-              sub={c.orders ? `Average ${inr(c.avgOrderPaise, { short: true })} per order` : 'None yet'} spark={<Spark values={daily.map((x) => x.orders)} color="#b8741a" />} />
+              sub={<Delta cur={c.netPaise} prev={cmpPrev} against={cmpLabel} />} spark={<Spark values={daily.map((x) => x.salesPaise)} color="#17513a" />}
+              rows={[{ k: 'Yesterday', v: inr(yest, { short: true }) }, { k: '7-day average', v: inr(avgDay, { short: true }) }, { k: 'Average bill', v: c.orders ? inr(c.avgOrderPaise, { short: true }) : '–' }]} />
+            <Kpi i={1} icon={<Receipt size={18} />} label="Orders" value={String(c.orders)} unit={c.orders === 1 ? 'order' : 'orders'}
+              sub={<span className="num">{openNow} open now · {c.completed ?? 0} completed</span>} spark={<Spark values={daily.map((x) => x.orders)} color="#b8741a" />}
+              rows={[{ k: 'Eat here / take-out', v: `${dine} / ${takeOut}` }, { k: 'Cancelled', v: c.cancelled }, { k: 'Discounts given', v: inr(c.discountPaise, { short: true }) }]} />
             <Kpi i={2} icon={<Wallet size={18} />} label="Money collected" value={inr(c.cashPaise + c.upiPaise, { short: true })}
-              sub={<span className="num">Cash {inr(c.cashPaise, { short: true })} · UPI {inr(c.upiPaise, { short: true })}</span>} />
+              sub={<span className="num inline-flex flex-wrap gap-x-3 gap-y-0.5"><span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-forest" />Cash {inr(c.cashPaise, { short: true })}</span><span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full bg-[#6f9a80]" />UPI {inr(c.upiPaise, { short: true })}</span></span>}
+              extra={<div className="mt-2.5 flex h-2 overflow-hidden rounded-full bg-[#eceae2]" role="img" aria-label="Share of cash, UPI and unpaid">{billed > 0 && parts.map((x) => x.v > 0 && <i key={x.key} className="h-2" style={{ width: `${(x.v / billed) * 100}%`, background: x.col }} />)}</div>}
+              rows={[{ k: 'Still to collect', v: inr(unpaid, { short: true }), bad: unpaid > 0 }, { k: 'Unpaid bills', v: d.live.unpaidCount, bad: d.live.unpaidCount > 0 }, { k: 'Refunds', v: inr(c.refundsPaise, { short: true }) }]} />
             <Kpi i={3} icon={<PiggyBank size={18} />} label="Left after expenses" value={inr(left, { short: true })} valueCls={left < 0 ? 'text-bad' : ''}
-              sub={<span className="num">Expenses {inr(c.expensesPaise, { short: true })}</span>} />
+              sub={<span className="num">Sales {inr(c.netPaise, { short: true })} − expenses {inr(c.expensesPaise, { short: true })}</span>}
+              rows={[{ k: 'Last 7 days left', v: inr(weekLeft, { short: true }), bad: weekLeft < 0 }, { k: 'Stock bought', v: `${inr(c.purchasesPaise, { short: true })}${stockPct != null ? ` (${stockPct}% of sales)` : ''}` }]}>
+              {can('expenses.manage') && <Link to="/money" className="press mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold text-forest ring-1 ring-line hover:bg-forest-soft"><Plus size={14} weight="bold" />Add expense</Link>}
+            </Kpi>
           </div>
 
           {/* row 2: seven-day trend + what is happening right now */}
