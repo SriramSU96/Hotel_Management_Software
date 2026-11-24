@@ -22,6 +22,15 @@ export function Button({ variant = 'primary', size = 'md', className = '', child
   );
 }
 
+/** Small square icon-only action (edit / delete / etc). Always pass a label: it becomes the tooltip and screen-reader name. */
+export function IconButton({ label, tone = 'default', className = '', children, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { label: string; tone?: 'default' | 'danger' }) {
+  return (
+    <button type="button" {...rest} aria-label={label} title={label} className={`press grid h-8 w-8 shrink-0 place-items-center rounded-lg ring-1 disabled:cursor-not-allowed disabled:opacity-45 ${tone === 'danger' ? 'text-bad ring-bad/25 hover:bg-bad/10' : 'text-ink-soft ring-line hover:bg-forest-soft hover:text-forest'} ${className}`}>
+      {children}
+    </button>
+  );
+}
+
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return <div className={`rounded-xl border border-line bg-card ${className}`}>{children}</div>;
 }

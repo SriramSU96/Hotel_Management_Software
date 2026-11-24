@@ -32,6 +32,10 @@ const TA: Record<string, string> = {
   'Choose a table': 'மேசையைத் தேர்ந்தெடுக்கவும்', 'Busy': 'ஆக்கிரமிப்பு', 'Free': 'காலி',
   'I have seen the money in the UPI app': 'UPI செயலியில் பணம் வந்ததை பார்த்தேன்', 'Amount received': 'பெற்ற தொகை', 'Change to give': 'திருப்பித் தர வேண்டியது',
   'Mark order complete': 'ஆர்டரை முடிக்கவும்', 'Start next order': 'அடுத்த ஆர்டர்',
+  'Showing': 'காட்டுவது', 'Rows': 'வரிசைகள்', 'Previous': 'முந்தையது', 'Next': 'அடுத்தது', 'Search': 'தேடு', 'Type': 'வகை', 'Status': 'நிலை', 'Payment': 'பணம் செலுத்தல்',
+  'Reset filters': 'வடிகட்டிகளை அழி', 'Bill no': 'பில் எண்', 'Items': 'பொருட்கள்', 'Date & time': 'தேதி & நேரம்', 'From': 'முதல்', 'To': 'வரை',
+  'Confirmed': 'உறுதி செய்யப்பட்டது', 'Completed': 'முடிந்தது', 'Cancelled': 'ரத்து செய்யப்பட்டது', 'Draft': 'வரைவு', 'Any': 'எதுவும்',
+  'No orders match these filters': 'இந்த வடிகட்டிகளுக்கு ஆர்டர் இல்லை',
 };
 
 interface LangState { lang: Lang; setLang: (l: Lang) => void }
