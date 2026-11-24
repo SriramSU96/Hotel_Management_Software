@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChatText, DownloadSimple, WhatsappLogo } from '@phosphor-icons/react';
 import { api } from '../lib/api';
 import { fmtDateTime, inr } from '../lib/format';
-import { ErrorNote, PageHead, Segmented, Skeleton } from '../components/ui';
+import { useT } from '../lib/i18n';
+import { Button, ErrorNote, PageHead, Segmented, Skeleton } from '../components/ui';
+import { DataTable, FilterSelect, Pagination, SearchBox, usePaged, type Column, type Sort } from '../components/DataTable';
 
 interface Row {
   id: string; billNo: string; type: string; items: { name: string; qty: number; note?: string }[]; totalPaise: number; payment: string | null;
@@ -15,6 +17,67 @@ interface Report {
   summary: { count: number; totalPaise: number; sentNotVerified: number; avgSecondsToVerify: number | null; byVerifier: Record<string, { count: number; totalPaise: number }>; byChannel: Record<string, number> };
 }
 const dur = (s: number | null) => (s == null ? '-' : s < 90 ? `${s} sec` : s < 5400 ? `${Math.round(s / 60)} min` : `${(s / 3600).toFixed(1)} h`);
+const typeLabel = (t: string) => (t === 'PARCEL' ? 'Parcel' : t === 'TAKEAWAY' ? 'Takeaway' : 'Eat here');
+const itemsLine = (r: Row) => r.items.map((i) => `${i.qty} × ${i.name}`).join(', ');
+const via = (r: Row) => <span className="inline-flex items-center gap-1">{r.channel === 'SMS' ? <ChatText size={14} /> : <WhatsappLogo size={14} />}{r.channel === 'SMS' ? 'SMS' : 'WhatsApp'}{r.phoneLast4 ? ` ••••${r.phoneLast4}` : ''}</span>;
+
+function VerifiedTable({ rows: all }: { rows: Row[] }) {
+  const t = useT();
+  const [search, setSearch] = useState('');
+  const [who, setWho] = useState('ALL');
+  const [channel, setChannel] = useState('ALL');
+  const [sort, setSort] = useState<Sort>({ key: 'verifiedAt', dir: 'desc' });
+  const people = useMemo(() => Array.from(new Set(all.map((r) => r.verifiedByName ?? '-'))).sort(), [all]);
+  const rows = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    const d = sort.dir === 'asc' ? 1 : -1;
+    return all
+      .filter((r) => (who === 'ALL' || (r.verifiedByName ?? '-') === who) && (channel === 'ALL' || r.channel === channel) && (!term || `${r.billNo} ${itemsLine(r)} ${r.verifiedByName ?? ''} ${r.sentByName ?? ''}`.toLowerCase().includes(term)))
+      .sort((a, b) => (sort.key === 'totalPaise' ? a.totalPaise - b.totalPaise : sort.key === 'billNo' ? a.billNo.localeCompare(b.billNo) : sort.key === 'took' ? (a.secondsToVerify ?? 0) - (b.secondsToVerify ?? 0) : new Date(a.verifiedAt).getTime() - new Date(b.verifiedAt).getTime()) * d);
+  }, [all, search, who, channel, sort]);
+  const paged = usePaged(rows, 10);
+  const dirty = !!search || who !== 'ALL' || channel !== 'ALL';
+  const reset = () => { setSearch(''); setWho('ALL'); setChannel('ALL'); paged.resetPage(); };
+
+  const columns: Column<Row>[] = [
+    { key: 'billNo', header: t('Bill no'), width: '150px', sortable: true, firstDir: 'asc', cell: (r) => <span className="num font-semibold">{r.billNo}</span> },
+    { key: 'items', header: t('Items'), cell: (r) => <span className="text-[13px] text-ink-soft" title={itemsLine(r)}>{itemsLine(r)}</span> },
+    { key: 'type', header: t('Type'), width: '95px', cell: (r) => <span className="text-[13px]">{typeLabel(r.type)}</span> },
+    { key: 'via', header: 'Sent via', width: '150px', cell: (r) => <span className="text-[13px] text-ink-soft">{via(r)}</span> },
+    { key: 'by', header: 'Verified by', width: '125px', cell: (r) => <span className="font-medium">{r.verifiedByName ?? '-'}</span> },
+    { key: 'verifiedAt', header: 'Verified at', width: '135px', sortable: true, cell: (r) => <span className="num text-[13px] text-ink-soft">{fmtDateTime(r.verifiedAt)}</span> },
+    { key: 'took', header: 'Took', width: '85px', sortable: true, cell: (r) => <span className="num text-[13px] text-ink-soft">{dur(r.secondsToVerify)}</span> },
+    { key: 'totalPaise', header: t('Total'), width: '105px', align: 'right', sortable: true, cell: (r) => <span className="num text-[15px] font-semibold">{inr(r.totalPaise)}</span> },
+  ];
+  const mobileRow = (r: Row) => (
+    <span className="block py-4 pl-4 pr-4">
+      <span className="flex flex-wrap items-baseline justify-between gap-2"><span className="num font-semibold">{r.billNo}</span><span className="num text-[17px] font-semibold">{inr(r.totalPaise)}</span></span>
+      <span className="mt-1 block text-sm">{itemsLine(r)}</span>
+      <span className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1 text-xs text-ink-soft min-[640px]:grid-cols-2">
+        <span>Verified by <b className="text-ink">{r.verifiedByName ?? '-'}</b></span>
+        <span>Verified at <b className="text-ink">{fmtDateTime(r.verifiedAt)}</b></span>
+        <span className="flex items-center gap-1">Sent via {via(r)}</span>
+        <span>Sent {r.sentAt ? fmtDateTime(r.sentAt) : '-'}{r.sentByName ? ` by ${r.sentByName}` : ''} · took {dur(r.secondsToVerify)}</span>
+        <span>{typeLabel(r.type)}{r.payment ? ` · paid by ${r.payment}` : ''}</span>
+      </span>
+    </span>
+  );
+  return (
+    <>
+      <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-line bg-card p-4">
+        <SearchBox label={t('Search')} placeholder="Bill no, item, person" value={search} onChange={(v) => { setSearch(v); paged.resetPage(); }} className="grow basis-64" />
+        <FilterSelect label="Verified by" value={who} onChange={(v) => { setWho(v); paged.resetPage(); }} options={[{ value: 'ALL', label: t('All') }, ...people.map((p) => ({ value: p, label: p }))]} />
+        <FilterSelect label="Sent via" value={channel} onChange={(v) => { setChannel(v); paged.resetPage(); }} options={[{ value: 'ALL', label: t('All') }, { value: 'WHATSAPP', label: 'WhatsApp' }, { value: 'SMS', label: 'SMS' }]} />
+        {dirty && <Button variant="ghost" onClick={reset}>{t('Reset filters')}</Button>}
+      </div>
+      <DataTable
+        columns={columns} rows={paged.slice} rowKey={(r) => r.id} sort={sort} onSort={(s) => { setSort(s); paged.resetPage(); }} mobileRow={mobileRow} minWidth={980}
+        empty={<div><p className="rounded-xl border border-dashed border-line p-6 text-center text-sm text-ink-soft">No verified bills match these filters.</p><div className="mt-3 text-center"><Button variant="soft" onClick={reset}>{t('Reset filters')}</Button></div></div>}
+        footer={<Pagination page={paged.page} pageSize={paged.pageSize} total={paged.total} onPage={paged.setPage} onPageSize={paged.setPageSize} />}
+      />
+    </>
+  );
+}
 
 /** Every digital bill the staff verified: what was ordered, the amount, who verified it, and when. */
 export default function VerifiedReport() {
@@ -42,26 +105,7 @@ export default function VerifiedReport() {
           {Object.keys(d.summary.byVerifier).length > 0 && (
             <p className="mt-3 text-sm text-ink-soft">By person: {Object.entries(d.summary.byVerifier).map(([n, v]) => `${n} ${v.count} (${inr(v.totalPaise)})`).join(' · ')}</p>
           )}
-          {d.rows.length === 0 ? <p className="mt-5 rounded-xl border border-dashed border-line p-6 text-center text-sm text-ink-soft">No verified digital bills in this period.</p> : (
-            <ul className="mt-6 divide-y divide-line border-y border-line">
-              {d.rows.map((r) => (
-                <li key={r.id} className="py-4">
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <p className="num font-semibold">{r.billNo}</p>
-                    <p className="num text-[17px] font-semibold">{inr(r.totalPaise)}</p>
-                  </div>
-                  <p className="mt-1 text-sm">{r.items.map((i) => `${i.qty} × ${i.name}`).join(', ')}</p>
-                  <dl className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1 text-xs text-ink-soft min-[640px]:grid-cols-2">
-                    <div>Verified by <b className="text-ink">{r.verifiedByName ?? '-'}</b></div>
-                    <div>Verified at <b className="text-ink">{fmtDateTime(r.verifiedAt)}</b></div>
-                    <div className="flex items-center gap-1">Sent via {r.channel === 'SMS' ? <ChatText size={14} /> : <WhatsappLogo size={14} />}<b className="text-ink">{r.channel === 'SMS' ? 'SMS' : 'WhatsApp'}</b>{r.phoneLast4 && <> to ••••{r.phoneLast4}</>}</div>
-                    <div>Sent {r.sentAt ? fmtDateTime(r.sentAt) : '-'}{r.sentByName ? ` by ${r.sentByName}` : ''} · took {dur(r.secondsToVerify)}</div>
-                    <div>{r.type === 'PARCEL' ? 'Parcel' : r.type === 'TAKEAWAY' ? 'Takeaway' : 'Eat here'}{r.payment ? ` · paid by ${r.payment}` : ''}</div>
-                  </dl>
-                </li>
-              ))}
-            </ul>
-          )}
+          {d.rows.length === 0 ? <p className="mt-5 rounded-xl border border-dashed border-line p-6 text-center text-sm text-ink-soft">No verified digital bills in this period.</p> : <div className="mt-6"><VerifiedTable key={range} rows={d.rows} /></div>}
         </>
       )}
     </div>

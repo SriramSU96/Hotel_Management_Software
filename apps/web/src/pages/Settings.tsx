@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { fmtDateTime } from '../lib/format';
 import { useSettings, type Settings } from '../lib/queries';
 import { useT } from '../lib/i18n';
-import { Badge, Button, Card, ConfirmDialog, ErrorNote, Field, Modal, PageHead, Segmented, Skeleton, inputCls } from '../components/ui';
+import { Badge, Button, Card, ConfirmDialog, Empty, ErrorNote, Field, Modal, PageHead, Segmented, Skeleton, inputCls } from '../components/ui';
+import { DataTable, FilterSelect, Pagination, SearchBox, usePaged, type Column, type Sort } from '../components/DataTable';
 import { errText, toast } from '../lib/toast';
 import { EmailTab, PrinterTab, ReportContent, WhatsAppTab } from './SettingsConfig';
 
@@ -235,14 +236,54 @@ function RoleForm({ r, all, onClose, onSaved }: any) {
   );
 }
 
+const auditDetails = (l: any) => l.note ?? (l.after != null ? JSON.stringify(l.after) : '');
+const auditGroup = (action: string) => String(action ?? '').split('.')[0];
+
 function Audit() {
-  const q = useQuery({ queryKey: ['audit'], queryFn: () => api<{ logs: any[] }>('/audit?limit=150') });
-  if (q.isLoading) return <Skeleton className="h-64" />;
+  const t = useT();
+  const q = useQuery({ queryKey: ['audit'], queryFn: () => api<{ logs: any[] }>('/audit?limit=300') });
+  const [search, setSearch] = useState('');
+  const [group, setGroup] = useState('ALL');
+  const [sort, setSort] = useState<Sort>({ key: 'at', dir: 'desc' });
+  const groups = useMemo(() => Array.from(new Set((q.data?.logs ?? []).map((l) => auditGroup(l.action)).filter(Boolean))).sort(), [q.data]);
+  const rows = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    const d = sort.dir === 'asc' ? 1 : -1;
+    return (q.data?.logs ?? [])
+      .filter((l) => (group === 'ALL' || auditGroup(l.action) === group) && (!term || `${l.userName ?? ''} ${l.action ?? ''} ${auditDetails(l)}`.toLowerCase().includes(term)))
+      .sort((a, b) => (sort.key === 'who' ? String(a.userName ?? '').localeCompare(String(b.userName ?? '')) : sort.key === 'action' ? String(a.action ?? '').localeCompare(String(b.action ?? '')) : new Date(a.at).getTime() - new Date(b.at).getTime()) * d);
+  }, [q.data, search, group, sort]);
+  const paged = usePaged(rows, 25);
+  const dirty = !!search || group !== 'ALL';
+  const reset = () => { setSearch(''); setGroup('ALL'); paged.resetPage(); };
+  const columns: Column<any>[] = [
+    { key: 'at', header: 'When', width: '150px', sortable: true, cell: (l) => <span className="num text-[13px] text-ink-soft">{fmtDateTime(l.at)}</span> },
+    { key: 'who', header: 'Who', width: '160px', sortable: true, firstDir: 'asc', cell: (l) => l.userName },
+    { key: 'action', header: 'What', width: '230px', sortable: true, firstDir: 'asc', cell: (l) => <span className="font-medium">{l.action}</span> },
+    { key: 'details', header: 'Details', cell: (l) => <span className="text-[13px] text-ink-soft" title={auditDetails(l)}>{auditDetails(l)}</span> },
+  ];
+  const mobileRow = (l: any) => (
+    <span className="block px-4 py-3">
+      <span className="flex items-baseline justify-between gap-3"><span className="font-medium">{l.action}</span><span className="num text-xs text-ink-soft">{fmtDateTime(l.at)}</span></span>
+      <span className="block text-sm">{l.userName}</span>
+      {auditDetails(l) && <span className="mt-0.5 block break-words text-[13px] text-ink-soft">{auditDetails(l)}</span>}
+    </span>
+  );
+  if (q.error) return <ErrorNote error={q.error} />;
+  if (!q.isLoading && !q.data?.logs.length) return <Empty title="No history yet" hint="Every important change is recorded here." />;
   return (
-    <div className="overflow-x-auto rounded-[10px] border border-line bg-card">
-      <table className="w-full min-w-[560px] text-left text-sm"><thead className="bg-forest-soft text-forest"><tr>{['When', 'Who', 'What', 'Details'].map((h) => <th key={h} className="px-4 py-3 font-bold">{h}</th>)}</tr></thead>
-        <tbody className="divide-y divide-line">{q.data?.logs.map((l) => <tr key={l._id}><td className="px-4 py-3 text-ink-soft">{fmtDateTime(l.at)}</td><td className="px-4 py-3">{l.userName}</td><td className="px-4 py-3 font-medium">{l.action}</td><td className="max-w-xs truncate px-4 py-3 text-ink-soft">{l.note ?? (l.after != null ? JSON.stringify(l.after) : '')}</td></tr>)}</tbody></table>
-    </div>
+    <>
+      <div className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-line bg-card p-4">
+        <SearchBox label={t('Search')} placeholder="Person, action, details" value={search} onChange={(v) => { setSearch(v); paged.resetPage(); }} className="grow basis-64" />
+        <FilterSelect label="Area" value={group} onChange={(v) => { setGroup(v); paged.resetPage(); }} options={[{ value: 'ALL', label: t('All') }, ...groups.map((g) => ({ value: g, label: g }))]} />
+        {dirty && <Button variant="ghost" onClick={reset}>{t('Reset filters')}</Button>}
+      </div>
+      <DataTable
+        columns={columns} rows={paged.slice} rowKey={(l) => l._id} sort={sort} onSort={(s) => { setSort(s); paged.resetPage(); }} mobileRow={mobileRow} minWidth={900} loading={q.isLoading}
+        empty={<div><Empty title="No history matches these filters" /><div className="mt-3 text-center"><Button variant="soft" onClick={reset}>{t('Reset filters')}</Button></div></div>}
+        footer={<Pagination page={paged.page} pageSize={paged.pageSize} total={paged.total} onPage={paged.setPage} onPageSize={paged.setPageSize} />}
+      />
+    </>
   );
 }
 

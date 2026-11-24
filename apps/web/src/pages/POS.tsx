@@ -9,6 +9,7 @@ import { inr } from '../lib/format';
 import { useLocalName, useT } from '../lib/i18n';
 import { Button, Empty, ErrorNote, Modal, Segmented, Skeleton, inputCls } from '../components/ui';
 import ProductTile from '../components/ProductTile';
+import QtyInput from '../components/QtyInput';
 import BillModal from '../components/BillModal';
 import { toast, errText } from '../lib/toast';
 import { useAuth } from '../lib/auth';
@@ -119,7 +120,7 @@ export default function POS() {
         : visible.length === 0 ? <Empty title="Nothing found" hint="Try another word or category." icon={<ForkKnife size={36} />} />
         : (
           <div className="grid grid-cols-2 gap-3 min-[560px]:grid-cols-3 min-[760px]:grid-cols-2 min-[1000px]:grid-cols-3 min-[1500px]:grid-cols-4 min-[1750px]:grid-cols-5">
-            {visible.map((p, i) => <ProductTile key={p._id} p={p} index={i} type={cart.type} qty={qtyOf(p._id)} onTap={() => cart.add(p)} onMinus={() => cart.setQty(p._id, qtyOf(p._id) - 1)} />)}
+            {visible.map((p, i) => <ProductTile key={p._id} p={p} index={i} type={cart.type} qty={qtyOf(p._id)} onTap={() => cart.add(p)} onMinus={() => cart.setQty(p._id, qtyOf(p._id) - 1)} onQty={(n) => cart.setQty(p._id, n)} />)}
           </div>
         )}
       </section>
@@ -196,7 +197,7 @@ function CartPanel({ totals, count, needsTable, busy, error, onConfirm, onNote, 
                 </div>
                 <div className="mt-1.5 flex items-center gap-1.5">
                   <button onClick={() => cart.setQty(l.productId, l.qty - 1)} aria-label="Less" className="press grid h-9 w-9 place-items-center rounded-lg bg-forest-soft text-forest">{l.qty === 1 ? <Trash size={18} /> : <Minus size={18} weight="bold" />}</button>
-                  <span className="num w-8 text-center text-lg font-bold">{l.qty}</span>
+                  <QtyInput value={l.qty} onChange={(n) => cart.setQty(l.productId, n)} label={`${nm(l)} quantity`} className="h-9 w-12 rounded-lg bg-white text-lg font-bold ring-1 ring-line outline-none focus:ring-2 focus:ring-forest" />
                   <button onClick={() => cart.setQty(l.productId, l.qty + 1)} aria-label="More" className="press grid h-9 w-9 place-items-center rounded-lg bg-forest text-white"><Plus size={18} weight="bold" /></button>
                   <button onClick={() => cart.setQty(l.productId, 0)} aria-label={t('Delete item')} title={t('Delete item')} className="press grid h-9 w-9 place-items-center rounded-lg bg-bad/10 text-bad hover:bg-bad/20"><Trash size={18} /></button>
                   <button onClick={() => onNote(l.productId)} className="press ml-auto inline-flex min-h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] text-ink-soft ring-1 ring-line"><NotePencil size={16} />{t('Add note')}</button>
