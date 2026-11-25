@@ -4,7 +4,7 @@ import { hash, verify } from '@node-rs/argon2';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { Role, Session, User } from '../models/index.js';
 import { asyncHandler, HttpError, parse } from '../middleware/error.js';
-import { loadUserFromToken, newToken, parseCookies, requireLogin, sha256, SESSION_COOKIE } from '../middleware/auth.js';
+import { bearerToken, loadUserFromToken, newToken, parseCookies, requireLogin, sha256, SESSION_COOKIE } from '../middleware/auth.js';
 import { audit } from '../services/core.js';
 import { config, cookieSecure } from '../config.js';
 
@@ -46,11 +46,12 @@ authRouter.post('/login', ...loginLimiters, asyncHandler(async (req, res) => {
   const me = await loadUserFromToken(token);
   req.user = me ?? undefined;
   await audit(req, 'auth.login', 'User', user._id);
-  res.json({ user: me });
+  // the Expo app has no cookie jar to rely on (and the web build lives on another address), so it asks for the token once at sign-in
+  res.json(req.headers['x-client'] === 'app' ? { user: me, token } : { user: me });
 }));
 
 authRouter.post('/logout', asyncHandler(async (req, res) => {
-  const token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
+  const token = parseCookies(req.headers.cookie)[SESSION_COOKIE] ?? bearerToken(req.headers.authorization);
   if (token) await Session.deleteOne({ tokenHash: sha256(token) });
   res.clearCookie(SESSION_COOKIE, { path: '/' });
   res.json({ ok: true });

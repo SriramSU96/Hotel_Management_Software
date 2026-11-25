@@ -62,10 +62,15 @@ export async function loadUserFromToken(token: string | undefined): Promise<Auth
   };
 }
 
+/** The mobile/Expo app sends its session token as `Authorization: Bearer <token>` instead of a cookie. */
+export function bearerToken(header: string | undefined): string | undefined {
+  return /^Bearer\s+([A-Za-z0-9_-]{20,100})$/.exec(header ?? '')?.[1];
+}
+
 export async function authenticate(req: Request, _res: Response, next: NextFunction) {
   try {
-    const token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
-    req.user = (await loadUserFromToken(token)) ?? undefined;
+    const cookie = parseCookies(req.headers.cookie)[SESSION_COOKIE];
+    req.user = (await loadUserFromToken(cookie)) ?? (await loadUserFromToken(bearerToken(req.headers.authorization))) ?? undefined;
     next();
   } catch (e) {
     next(e);

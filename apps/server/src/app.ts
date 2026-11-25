@@ -22,6 +22,8 @@ import mongoose from 'mongoose';
 
 export function createApp() {
   const app = express();
+  // web addresses (e.g. the Expo web app) that may call the API with a Bearer token; see APP_ORIGINS
+  const appOrigins = config.APP_ORIGINS.split(',').map((s) => s.trim().replace(/\/$/, '')).filter(Boolean);
   // WebSocket address of this site for the live updates (some browsers do not treat 'self' as covering ws:)
   const liveOrigins = (() => { try { const u = new URL(config.PUBLIC_URL); return [`${u.protocol === 'https:' ? 'wss' : 'ws'}://${u.host}`]; } catch { return []; } })();
   // Only trust X-Forwarded-For when a reverse proxy really sits in front (TRUST_PROXY=1); otherwise anyone can fake their IP.
@@ -47,9 +49,22 @@ export function createApp() {
     res.status(up ? 200 : 503).json({ ok: up });
   });
 
-  app.use('/uploads', express.static(uploadDir, { maxAge: '7d', immutable: true }));
+  app.use('/uploads', express.static(uploadDir, { maxAge: '7d', immutable: true, setHeaders: (res) => { if (appOrigins.length) res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin'); } }));
 
   const api = express.Router();
+  // CORS for the Expo web app only. No cookies are involved (it sends a Bearer token), so credentials are never allowed.
+  api.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin && appOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Vary', 'Origin');
+      res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Requested-With, X-Client');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.setHeader('Access-Control-Max-Age', '600');
+      if (req.method === 'OPTIONS') { res.sendStatus(204); return; }
+    }
+    next();
+  });
   // nothing from the API (orders, customers, reports) may be stored by browsers or shared caches
   api.use((_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(); });
   api.use(authenticate);

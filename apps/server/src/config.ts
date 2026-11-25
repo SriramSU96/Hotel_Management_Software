@@ -9,6 +9,8 @@ const schema = z.object({
   UPLOAD_DIR: z.string().default('./uploads'),
   WEB_DIST: z.string().optional(),
   SESSION_TTL_HOURS: z.coerce.number().default(12),
+  // Web origins allowed to call the API from another address with a Bearer token (the Expo web app), comma separated. Empty = same-origin only.
+  APP_ORIGINS: z.string().default(''),
   // Number of reverse proxies in front of the server (0 = none). Trusting X-Forwarded-For when nobody is in front lets anyone fake their IP and dodge rate limits.
   TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(0),
   // Send the session cookie only over HTTPS. Defaults to on in production; set false only for a plain-HTTP restaurant LAN.
