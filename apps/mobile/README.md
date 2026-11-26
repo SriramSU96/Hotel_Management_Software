@@ -35,7 +35,18 @@ On a phone, the server must be reachable from the phone (`http://192.168.x.x:400
 
 ## 4. Build the APK
 
-No account, on this PC (needs Android Studio, it provides Java and the SDK):
+**Recommended: in the cloud** (free Expo account, no Java / Android SDK needed, avoids the Windows 260-character path limit that stops local React Native builds). Commit your changes first, then:
+
+```powershell
+cd apps/mobile
+npm i -g eas-cli
+eas login
+eas build --platform android --profile preview
+```
+
+Answer Yes when it offers to create the project. When it finishes it prints a link to the APK (also in the expo.dev dashboard). Same as `npm run apk:cloud`.
+
+**Or on this PC** (needs Android Studio; Windows must allow long paths, otherwise it fails with "Filename longer than 260 characters"):
 
 ```powershell
 cd apps/mobile
@@ -43,14 +54,6 @@ cd apps/mobile
 ```
 
 Output: `apps/mobile/AMMAS.apk`. Copy it to the phone and open it, or `adb install -r AMMAS.apk`.
-
-Or in the cloud (free Expo account, no Android tools needed):
-
-```powershell
-npm i -g eas-cli
-eas login
-npm run apk:cloud
-```
 
 ## 5. Web build (optional)
 
@@ -62,6 +65,7 @@ Host `dist` on any static host and add its address to `APP_ORIGINS` on the serve
 
 ## Notes
 
+- APK build says "JAVA_HOME is invalid" or "No Java found": the script now searches for a working JDK by itself (Android Studio's bundled one, or an installed JDK) and ignores a wrong JAVA_HOME. If none exists: `winget install EclipseAdoptium.Temurin.17.JDK`, reopen the terminal, run again.
 - `apps/mobile` is not part of the root npm workspaces on purpose: Expo needs its own `node_modules`.
 - The Android build allows plain `http://` (shop Wi-Fi). Use an `https://` address when the server is on the internet.
 - Printing: the server prints bills and kitchen tickets through the print bridge, so it works from the app. Browser-print mode is not available in the app.
