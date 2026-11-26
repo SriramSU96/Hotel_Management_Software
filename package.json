@@ -22,7 +22,8 @@
     "mobile:setup": "powershell -ExecutionPolicy Bypass -File apps/mobile/setup.ps1",
     "mobile:web": "npm --prefix apps/mobile run web",
     "mobile:android": "npm --prefix apps/mobile run android",
-    "mobile:apk": "npm --prefix apps/mobile run apk"
+    "mobile:apk": "npm --prefix apps/mobile run apk",
+    "mobile:apk:cloud": "npm --prefix apps/mobile run apk:cloud"
   },
   "devDependencies": {
     "concurrently": "^9.2.5"

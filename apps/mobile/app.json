@@ -18,7 +18,19 @@
     },
     "plugins": [
       "expo-secure-store",
-      ["expo-build-properties", { "android": { "usesCleartextTraffic": true } }]
-    ]
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "a93d5a5e-0cb4-425f-86e1-6d565f6f4362"
+      }
+    }
   }
 }
