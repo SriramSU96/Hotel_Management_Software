@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "AMMAS",
+    "slug": "ammas-app",
+    "scheme": "ammas",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#f5f3ee",
+    "android": {
+      "package": "com.ammas.pos"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "name": "AMMAS",
+      "themeColor": "#1f3d2e"
+    },
+    "plugins": [
+      "expo-secure-store",
+      ["expo-build-properties", { "android": { "usesCleartextTraffic": true } }]
+    ]
+  }
+}

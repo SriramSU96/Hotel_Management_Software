@@ -4,7 +4,9 @@
   "private": true,
   "description": "AMMAS Hotel App v2 - single-branch restaurant POS, kitchen, stock and owner reporting",
   "workspaces": [
-    "apps/*"
+    "apps/server",
+    "apps/web",
+    "apps/print-bridge"
   ],
   "engines": {
     "node": ">=20"
@@ -16,7 +18,11 @@
     "typecheck": "npm run typecheck -w @ammas/server && npm run typecheck -w @ammas/web && npm run typecheck -w @ammas/print-bridge",
     "test": "npm run test -w @ammas/server",
     "seed": "npm run seed -w @ammas/server",
-    "bridge": "npm run start -w @ammas/print-bridge"
+    "bridge": "npm run start -w @ammas/print-bridge",
+    "mobile:setup": "powershell -ExecutionPolicy Bypass -File apps/mobile/setup.ps1",
+    "mobile:web": "npm --prefix apps/mobile run web",
+    "mobile:android": "npm --prefix apps/mobile run android",
+    "mobile:apk": "npm --prefix apps/mobile run apk"
   },
   "devDependencies": {
     "concurrently": "^9.2.5"
